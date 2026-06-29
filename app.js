@@ -11,12 +11,13 @@ const priorityOrder = {
   Flexible: 4,
   Skip: 5,
 };
-const mapBounds = {
-  Bangkok: { latMin: 12.86, latMax: 13.84, lngMin: 100.44, lngMax: 100.82 },
-  Singapore: { latMin: 1.2, latMax: 1.4, lngMin: 103.74, lngMax: 104.02 },
-};
 const defaultResultsSummary =
   "Browse by city, neighborhood, category, mood, price, priority, and status.";
+const atlasAspectRatio = 620 / 1000;
+const defaultAtlasViewports = {
+  Bangkok: { x: 0, y: 0, width: 1000, height: 620 },
+  Singapore: { x: 0, y: 0, width: 1000, height: 620 },
+};
 
 const neighborhoodAtlas = {
   Bangkok: {
@@ -143,6 +144,16 @@ const state = {
   activePlaceId: null,
   editingPlaceId: null,
   selectedScheduleKey: "2026-07-09",
+  atlasViewport: JSON.parse(JSON.stringify(defaultAtlasViewports)),
+  atlasDrag: {
+    active: false,
+    moved: false,
+    pointerId: null,
+    startClientX: 0,
+    startClientY: 0,
+    startViewport: null,
+    suppressClickUntil: 0,
+  },
 };
 
 const baseSchedules = buildSchedules();
@@ -214,6 +225,7 @@ function bindEvents() {
 
     const regionTrigger = event.target.closest("[data-map-region]");
     if (regionTrigger) {
+      if (Date.now() < state.atlasDrag.suppressClickUntil) return;
       const nextNeighborhood = regionTrigger.dataset.mapRegion;
       state.filters.city = state.mapCity;
       state.filters.area = state.filters.area === nextNeighborhood ? "All" : nextNeighborhood;
@@ -232,13 +244,6 @@ function bindEvents() {
       return;
     }
 
-    const mapPlace = event.target.closest("[data-map-place]");
-    if (mapPlace) {
-      state.activePlaceId = mapPlace.dataset.mapPlace;
-      renderMapExplorer(getFilteredPlaces());
-      return;
-    }
-
     const selectPlace = event.target.closest("[data-select-place]");
     if (selectPlace) {
       state.activePlaceId = selectPlace.dataset.selectPlace;
@@ -249,6 +254,12 @@ function bindEvents() {
     const editPlace = event.target.closest("[data-edit-place]");
     if (editPlace) {
       openEditor(editPlace.dataset.editPlace);
+      return;
+    }
+
+    const atlasZoom = event.target.closest("[data-atlas-zoom]");
+    if (atlasZoom) {
+      adjustAtlasZoom(atlasZoom.dataset.atlasZoom);
     }
   });
 
@@ -262,6 +273,25 @@ function bindEvents() {
       field.value
     );
   });
+
+  elements.mapCanvas.addEventListener("pointerdown", handleAtlasPointerDown);
+  elements.mapCanvas.addEventListener("pointermove", handleAtlasPointerMove);
+  elements.mapCanvas.addEventListener("pointerup", handleAtlasPointerUp);
+  elements.mapCanvas.addEventListener("pointercancel", handleAtlasPointerUp);
+  elements.mapCanvas.addEventListener(
+    "wheel",
+    (event) => {
+      const map = event.target.closest(".atlas-map");
+      if (!map) return;
+      event.preventDefault();
+      const rect = map.getBoundingClientRect();
+      const viewport = getAtlasViewport();
+      const anchorX = viewport.x + ((event.clientX - rect.left) / rect.width) * viewport.width;
+      const anchorY = viewport.y + ((event.clientY - rect.top) / rect.height) * viewport.height;
+      adjustAtlasZoom(event.deltaY < 0 ? "in" : "out", { x: anchorX, y: anchorY });
+    },
+    { passive: false }
+  );
 }
 
 function buildSchedules() {
@@ -588,6 +618,7 @@ function renderMapExplorer(filtered) {
   renderNeighborhoodChips(cityPlaces);
   renderAtlasCanvas(cityPlaces);
   renderInspector(cityPlaces);
+  syncAtlasViewport();
 }
 
 function renderMapCityTabs(filtered) {
@@ -615,7 +646,13 @@ function renderNeighborhoodChips(cityPlaces) {
           acc[place.neighborhood] = (acc[place.neighborhood] || 0) + 1;
           return acc;
         }, {})
-      ).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      ).sort((a, b) => {
+        const flexibleDelta = Number(isFlexibleNeighborhood(a[0])) - Number(isFlexibleNeighborhood(b[0]));
+        if (flexibleDelta !== 0) return flexibleDelta;
+        const countDelta = b[1] - a[1];
+        if (countDelta !== 0) return countDelta;
+        return a[0].localeCompare(b[0]);
+      })
     );
 
   elements.mapNeighborhoods.innerHTML = grouped
@@ -646,19 +683,31 @@ function renderAtlasCanvas(cityPlaces) {
     return;
   }
 
-  if (!state.activePlaceId || !cityPlaces.some((place) => place.id === state.activePlaceId)) {
-    state.activePlaceId = cityPlaces[0].id;
-  }
-
   const activeNeighborhood = state.filters.area !== "All" ? state.filters.area : null;
+  const neighborhoodCounts = cityPlaces.reduce((acc, place) => {
+    acc[place.neighborhood] = (acc[place.neighborhood] || 0) + 1;
+    return acc;
+  }, {});
+
   const regionMarkup = atlas.regions
     .map((region) => {
-      const hasPins = cityPlaces.some((place) => place.neighborhood === region.key);
+      const count = neighborhoodCounts[region.key] || 0;
+      const hasPlaces = count > 0;
       const active = activeNeighborhood === region.key;
       return `
-        <g>
-          <path class="atlas-region ${active ? "active" : ""}" d="${region.path}" data-map-region="${escapeAttribute(region.key)}" opacity="${hasPins ? 1 : 0.55}"></path>
+        <g data-map-region="${escapeAttribute(region.key)}">
+          <path class="atlas-region ${active ? "active" : ""}" d="${region.path}" data-map-region="${escapeAttribute(region.key)}" opacity="${hasPlaces ? 1 : 0.45}"></path>
           <text class="atlas-region-label" x="${region.x}" y="${region.y}" text-anchor="middle">${escapeHtml(region.label)}</text>
+          ${
+            hasPlaces
+              ? `
+                <g class="atlas-count-badge" data-map-region="${escapeAttribute(region.key)}">
+                  <circle cx="${region.x}" cy="${region.y + 28}" r="17"></circle>
+                  <text x="${region.x}" y="${region.y + 34}" text-anchor="middle">${count}</text>
+                </g>
+              `
+              : ""
+          }
         </g>
       `;
     })
@@ -679,26 +728,16 @@ function renderAtlasCanvas(cityPlaces) {
     )
     .join("");
 
-  const pinMarkup = cityPlaces
-    .map((place) => {
-      const point = projectToAtlas(state.mapCity, place.lat, place.lng);
-      return `
-        <button
-          class="pin-button ${getPinClass(place)} ${place.id === state.activePlaceId ? "active" : ""}"
-          type="button"
-          data-map-place="${escapeAttribute(place.id)}"
-          style="left:${point.left}%; top:${point.top}%;"
-          aria-label="${escapeAttribute(place.name)}"
-        ></button>
-      `;
-    })
-    .join("");
-
   elements.mapCanvas.innerHTML = `
     <div class="atlas-shell">
       <div class="atlas-help">
-        <span>Tap neighborhoods to narrow the shortlist. Tap pins to inspect places.</span>
-        <span>${escapeHtml(state.mapCity)} · ${cityPlaces.length} visible pins</span>
+        <span>Drag to pan. Use the controls or your trackpad to zoom. Tap neighborhoods to focus the shortlist.</span>
+        <span>${escapeHtml(state.mapCity)} · ${cityPlaces.length} visible places</span>
+      </div>
+      <div class="atlas-toolbar">
+        <button class="atlas-tool" type="button" data-atlas-zoom="in" aria-label="Zoom in">+</button>
+        <button class="atlas-tool" type="button" data-atlas-zoom="out" aria-label="Zoom out">−</button>
+        <button class="atlas-tool wide" type="button" data-atlas-zoom="reset">Reset view</button>
       </div>
       <div class="atlas-map">
         <svg class="atlas-svg" viewBox="0 0 1000 620" aria-hidden="true">
@@ -709,7 +748,6 @@ function renderAtlasCanvas(cityPlaces) {
           ${regionMarkup}
           ${labelsMarkup}
         </svg>
-        <div class="atlas-pins">${pinMarkup}</div>
       </div>
     </div>
   `;
@@ -721,10 +759,33 @@ function renderInspector(cityPlaces) {
     return;
   }
 
-  const activePlace = cityPlaces.find((place) => place.id === state.activePlaceId) || cityPlaces[0];
-  const related = cityPlaces
-    .filter((place) => place.neighborhood === activePlace.neighborhood && place.id !== activePlace.id)
-    .slice(0, 5);
+  const grouped = Object.entries(
+    cityPlaces.reduce((acc, place) => {
+      acc[place.neighborhood] = (acc[place.neighborhood] || 0) + 1;
+      return acc;
+    }, {})
+  ).sort((a, b) => {
+    const flexibleDelta = Number(isFlexibleNeighborhood(a[0])) - Number(isFlexibleNeighborhood(b[0]));
+    if (flexibleDelta !== 0) return flexibleDelta;
+    const countDelta = b[1] - a[1];
+    if (countDelta !== 0) return countDelta;
+    return a[0].localeCompare(b[0]);
+  });
+
+  const focusedNeighborhood =
+    state.filters.area !== "All" && grouped.some(([name]) => name === state.filters.area)
+      ? state.filters.area
+      : grouped[0][0];
+
+  const neighborhoodPlaces = cityPlaces
+    .filter((place) => place.neighborhood === focusedNeighborhood)
+    .sort(sortPlaces);
+
+  const activePlace =
+    neighborhoodPlaces.find((place) => place.id === state.activePlaceId) || neighborhoodPlaces[0];
+  state.activePlaceId = activePlace.id;
+
+  const related = neighborhoodPlaces.filter((place) => place.id !== activePlace.id).slice(0, 6);
 
   const porkCopy =
     activePlace.porkFriendly === "Yes"
@@ -735,10 +796,16 @@ function renderInspector(cityPlaces) {
     <div class="card-chips">
       ${renderStatusPill(activePlace.effectiveStatus)}
       <span class="chip">${escapeHtml(activePlace.filterCategory)}</span>
-      <span class="chip">${escapeHtml(activePlace.neighborhood)}</span>
+      <span class="chip">${escapeHtml(focusedNeighborhood)}</span>
     </div>
-    <h3>${escapeHtml(activePlace.name)}</h3>
-    <p class="card-subtitle">${escapeHtml(activePlace.cityGroup)} · ${escapeHtml(activePlace.area || activePlace.neighborhood)}</p>
+    <p class="eyebrow">Focused Neighborhood</p>
+    <h3>${escapeHtml(focusedNeighborhood)}</h3>
+    <p class="card-subtitle">${escapeHtml(state.mapCity)} · ${neighborhoodPlaces.length} visible place${neighborhoodPlaces.length === 1 ? "" : "s"}</p>
+    <div class="inspector-neighborhood-summary">
+      <p><strong>Featured place:</strong> ${escapeHtml(activePlace.name)}</p>
+      <p>${escapeHtml(activePlace.bestFor || activePlace.notes)}</p>
+      <p>Use the atlas to narrow the area, then hop through the neighborhood picks here without losing the broader shortlist below.</p>
+    </div>
     <div class="card-meta" style="margin-top:14px;">
       <div><strong>Best for:</strong> ${escapeHtml(activePlace.bestFor || "Flexible pick")}</div>
       <div><strong>Priority:</strong> ${escapeHtml(activePlace.priority)}</div>
@@ -758,7 +825,8 @@ function renderInspector(cityPlaces) {
       ${activePlace.sourceUrl ? `<a class="card-button link" href="${escapeAttribute(activePlace.sourceUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
     </div>
     <div class="inspector-related">
-      ${related.length ? `<strong>More in ${escapeHtml(activePlace.neighborhood)}</strong>` : ""}
+      <strong>${escapeHtml(focusedNeighborhood)} picks</strong>
+      <button type="button" data-select-place="${escapeAttribute(activePlace.id)}">${escapeHtml(activePlace.name)}</button>
       ${related
         .map(
           (place) => `
@@ -768,16 +836,6 @@ function renderInspector(cityPlaces) {
         .join("")}
     </div>
   `;
-}
-
-function projectToAtlas(city, lat, lng) {
-  const bounds = mapBounds[city];
-  const left = ((lng - bounds.lngMin) / (bounds.lngMax - bounds.lngMin)) * 86 + 7;
-  const top = (1 - (lat - bounds.latMin) / (bounds.latMax - bounds.latMin)) * 80 + 8;
-  return {
-    left: clamp(left, 6, 94),
-    top: clamp(top, 7, 92),
-  };
 }
 
 function renderSections(filtered) {
@@ -979,7 +1037,7 @@ function populateFilterOptions() {
   setSelectOptions(elements.filters.city, ["All", "Bangkok", "Singapore"], state.filters.city);
   setSelectOptions(
     elements.filters.area,
-    ["All", ...uniqueValues(scopedPlaces, (place) => place.neighborhood)],
+    ["All", ...getNeighborhoodOptions(scopedPlaces)],
     state.filters.area
   );
   setSelectOptions(
@@ -1035,16 +1093,22 @@ function renderStatusPill(status) {
   return `<span class="${className}">${escapeHtml(status)}</span>`;
 }
 
-function getPinClass(place) {
-  if (["Closed", "Cut"].includes(place.effectiveStatus) || place.porkFriendly === "No") {
-    return "pin-caution";
-  }
-  if (place.effectiveStatus === "Planned Night") return "pin-planned";
-  return "pin-normal";
-}
-
 function uniqueValues(items, getter) {
   return [...new Set(items.map(getter).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function getNeighborhoodOptions(places) {
+  return [...new Set(places.map((place) => place.neighborhood).filter(Boolean))].sort(compareNeighborhoods);
+}
+
+function compareNeighborhoods(a, b) {
+  const flexibleDelta = Number(isFlexibleNeighborhood(a)) - Number(isFlexibleNeighborhood(b));
+  if (flexibleDelta !== 0) return flexibleDelta;
+  return a.localeCompare(b);
+}
+
+function isFlexibleNeighborhood(name) {
+  return String(name).toLowerCase().includes("flexible");
 }
 
 function loadStorage(key) {
@@ -1061,6 +1125,104 @@ function persistStorage(key, value) {
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+function getAtlasViewport(city = state.mapCity) {
+  return state.atlasViewport[city] || { ...defaultAtlasViewports[city] };
+}
+
+function setAtlasViewport(city, nextViewport) {
+  const minWidth = 380;
+  const maxWidth = 1000;
+  const width = clamp(nextViewport.width, minWidth, maxWidth);
+  const height = width * atlasAspectRatio;
+  const x = clamp(nextViewport.x, 0, 1000 - width);
+  const y = clamp(nextViewport.y, 0, 620 - height);
+  state.atlasViewport[city] = { x, y, width, height };
+}
+
+function syncAtlasViewport() {
+  const svg = elements.mapCanvas.querySelector(".atlas-svg");
+  if (!svg) return;
+  const viewport = getAtlasViewport();
+  svg.setAttribute(
+    "viewBox",
+    `${viewport.x.toFixed(2)} ${viewport.y.toFixed(2)} ${viewport.width.toFixed(2)} ${viewport.height.toFixed(2)}`
+  );
+}
+
+function adjustAtlasZoom(direction, anchor = { x: 500, y: 310 }) {
+  const city = state.mapCity;
+  const current = getAtlasViewport(city);
+  const factor = direction === "in" ? 0.84 : direction === "out" ? 1.2 : 1;
+  if (direction === "reset") {
+    state.atlasViewport[city] = { ...defaultAtlasViewports[city] };
+    syncAtlasViewport();
+    return;
+  }
+
+  const nextWidth = clamp(current.width * factor, 380, 1000);
+  const scaleRatio = nextWidth / current.width;
+  const nextHeight = nextWidth * atlasAspectRatio;
+  const nextX = anchor.x - (anchor.x - current.x) * scaleRatio;
+  const nextY = anchor.y - (anchor.y - current.y) * scaleRatio;
+  setAtlasViewport(city, { x: nextX, y: nextY, width: nextWidth, height: nextHeight });
+  syncAtlasViewport();
+}
+
+function handleAtlasPointerDown(event) {
+  const map = event.target.closest(".atlas-map");
+  if (!map || event.button !== 0) return;
+  const viewport = getAtlasViewport();
+  state.atlasDrag = {
+    active: true,
+    moved: false,
+    pointerId: event.pointerId,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    startViewport: { ...viewport },
+    suppressClickUntil: state.atlasDrag.suppressClickUntil,
+  };
+  map.setPointerCapture(event.pointerId);
+}
+
+function handleAtlasPointerMove(event) {
+  if (!state.atlasDrag.active || event.pointerId !== state.atlasDrag.pointerId) return;
+  const map = elements.mapCanvas.querySelector(".atlas-map");
+  if (!map || !state.atlasDrag.startViewport) return;
+  const rect = map.getBoundingClientRect();
+  const deltaX = event.clientX - state.atlasDrag.startClientX;
+  const deltaY = event.clientY - state.atlasDrag.startClientY;
+  if (Math.abs(deltaX) + Math.abs(deltaY) > 4) {
+    state.atlasDrag.moved = true;
+    map.classList.add("dragging");
+  }
+
+  const svgDeltaX = (deltaX / rect.width) * state.atlasDrag.startViewport.width;
+  const svgDeltaY = (deltaY / rect.height) * state.atlasDrag.startViewport.height;
+  setAtlasViewport(state.mapCity, {
+    x: state.atlasDrag.startViewport.x - svgDeltaX,
+    y: state.atlasDrag.startViewport.y - svgDeltaY,
+    width: state.atlasDrag.startViewport.width,
+    height: state.atlasDrag.startViewport.height,
+  });
+  syncAtlasViewport();
+}
+
+function handleAtlasPointerUp(event) {
+  if (!state.atlasDrag.active || event.pointerId !== state.atlasDrag.pointerId) return;
+  const map = elements.mapCanvas.querySelector(".atlas-map");
+  if (map) {
+    try {
+      map.releasePointerCapture(event.pointerId);
+    } catch {}
+    map.classList.remove("dragging");
+  }
+  state.atlasDrag.suppressClickUntil = state.atlasDrag.moved ? Date.now() + 120 : 0;
+  state.atlasDrag.active = false;
+  state.atlasDrag.pointerId = null;
+  state.atlasDrag.startViewport = null;
+  state.atlasDrag.moved = false;
 }
 
 function escapeHtml(value) {
