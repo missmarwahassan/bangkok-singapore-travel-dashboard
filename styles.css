@@ -474,6 +474,58 @@ textarea:focus {
   display: block;
 }
 
+.map-region {
+  fill: rgba(170, 146, 122, 0.08);
+  stroke: rgba(140, 120, 101, 0.18);
+  stroke-width: 2;
+}
+
+.map-region-soft {
+  fill: rgba(170, 146, 122, 0.05);
+  stroke: rgba(140, 120, 101, 0.12);
+  stroke-width: 1.5;
+}
+
+.map-road-major {
+  stroke: rgba(121, 107, 93, 0.34);
+  stroke-width: 12;
+  fill: none;
+  stroke-linecap: round;
+}
+
+.map-road-minor {
+  stroke: rgba(121, 107, 93, 0.18);
+  stroke-width: 6;
+  fill: none;
+  stroke-linecap: round;
+}
+
+.map-water {
+  fill: rgba(194, 201, 204, 0.52);
+  stroke: rgba(171, 180, 184, 0.42);
+  stroke-width: 1.5;
+}
+
+.map-park {
+  fill: rgba(169, 187, 164, 0.22);
+  stroke: rgba(141, 158, 138, 0.22);
+  stroke-width: 1.5;
+}
+
+.map-water-label,
+.map-road-label {
+  fill: rgba(108, 96, 85, 0.78);
+  font-family: var(--sans);
+  font-size: 20px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.map-road-label {
+  font-size: 16px;
+  letter-spacing: 0.08em;
+}
+
 .map-label {
   position: absolute;
   padding: 6px 10px;
@@ -532,6 +584,28 @@ textarea:focus {
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.62);
   border: 1px solid var(--line);
+}
+
+.map-neighborhoods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.map-neighborhood-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.map-neighborhood-chip strong {
+  color: var(--text);
 }
 
 .map-detail h3,

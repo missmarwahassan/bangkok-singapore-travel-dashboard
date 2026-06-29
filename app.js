@@ -70,6 +70,7 @@ const elements = {
   sectionsRoot: document.getElementById("sectionsRoot"),
   mapCityTabs: document.getElementById("mapCityTabs"),
   mapCanvas: document.getElementById("mapCanvas"),
+  mapNeighborhoods: document.getElementById("mapNeighborhoods"),
   mapDetail: document.getElementById("mapDetail"),
   exportCsvButton: document.getElementById("exportCsvButton"),
   resetFiltersButton: document.getElementById("resetFiltersButton"),
@@ -482,6 +483,7 @@ function renderMap(filtered) {
   const places = filtered.filter((place) => place.cityGroup === city);
   if (!places.length) {
     elements.mapCanvas.innerHTML = `<div class="map-hud"><p class="map-hint">No visible places in ${escapeHtml(city)} for the current filters.</p></div>`;
+    elements.mapNeighborhoods.innerHTML = "";
     elements.mapDetail.innerHTML = `<p class="map-hint">Try loosening a filter or switching city tabs.</p>`;
     return;
   }
@@ -534,6 +536,7 @@ function renderMap(filtered) {
   `;
 
   renderMapDetail(activePlace);
+  renderMapNeighborhoods(places);
   attachMapInteractions(city);
 }
 
@@ -566,10 +569,33 @@ function renderMapDetail(place) {
     }
     <div class="map-detail-actions" style="margin-top:12px;">
       <a class="card-button link" href="#card-${escapeAttribute(place.id)}">Jump to card</a>
+      <button class="card-button" type="button" data-map-control="center">Center pin</button>
       <button class="card-button" type="button" data-edit-place="${escapeHtml(place.id)}">Edit fields</button>
       ${place.sourceUrl ? `<a class="card-button link" href="${escapeAttribute(place.sourceUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
     </div>
   `;
+}
+
+function renderMapNeighborhoods(places) {
+  const grouped = Object.entries(
+    places.reduce((acc, place) => {
+      acc[place.neighborhood] = (acc[place.neighborhood] || 0) + 1;
+      return acc;
+    }, {})
+  )
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 8);
+
+  elements.mapNeighborhoods.innerHTML = grouped
+    .map(
+      ([name, count]) => `
+        <span class="map-neighborhood-chip">
+          <strong>${escapeHtml(name)}</strong>
+          <span>${count} pin${count === 1 ? "" : "s"}</span>
+        </span>
+      `
+    )
+    .join("");
 }
 
 function attachMapInteractions(city) {
@@ -620,6 +646,7 @@ function adjustMapView(action) {
   const city = state.mapCity;
   if (action === "zoom-in") mapViews[city].scale = clamp(mapViews[city].scale + 0.16, 0.9, 2.8);
   if (action === "zoom-out") mapViews[city].scale = clamp(mapViews[city].scale - 0.16, 0.9, 2.8);
+  if (action === "center") centerMapOnActivePin(city);
   if (action === "reset") mapViews[city] = city === "Bangkok" ? { scale: 1.08, x: 0, y: 0 } : { scale: 1.15, x: 0, y: 0 };
   renderMap(getFilteredPlaces());
 }
@@ -628,29 +655,59 @@ function mapTransform(city) {
   return `translate(${mapViews[city].x}px, ${mapViews[city].y}px) scale(${mapViews[city].scale})`;
 }
 
+function centerMapOnActivePin(city) {
+  const active = getFilteredPlaces().find(
+    (place) => place.id === state.activePlaceId && place.cityGroup === city
+  );
+  if (!active) return;
+  const point = projectToMap(city, active.lat, active.lng);
+  const layerWidth = 1000;
+  const layerHeight = 700;
+  const x = layerWidth / 2 - (point.left / 100) * layerWidth;
+  const y = layerHeight / 2 - (point.top / 100) * layerHeight;
+  mapViews[city].x = clamp(x, -260, 260);
+  mapViews[city].y = clamp(y, -190, 190);
+}
+
 function renderMapBackground(city) {
   if (city === "Bangkok") {
     return `
       <svg viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true">
         <rect width="1000" height="700" fill="var(--map-land)"></rect>
-        <path d="M0 210 C170 160 250 175 360 220 C450 258 520 248 620 210 C720 171 810 170 1000 228 L1000 700 L0 700 Z" fill="rgba(212, 201, 190, 0.35)"></path>
-        <path d="M0 405 C160 360 230 376 320 418 C405 457 530 456 645 415 C777 368 882 370 1000 430" stroke="var(--map-road)" stroke-width="18" fill="none" stroke-linecap="round"></path>
-        <path d="M120 80 C220 170 290 260 320 370 C335 430 340 492 325 590" stroke="rgba(184, 170, 155, 0.65)" stroke-width="72" fill="none" stroke-linecap="round"></path>
-        <path d="M200 118 C420 130 564 190 742 288 C820 332 886 392 948 484" stroke="rgba(154, 135, 116, 0.25)" stroke-width="10" fill="none" stroke-linecap="round"></path>
-        <path d="M250 540 C420 470 570 455 760 482 C840 494 896 514 965 552" stroke="rgba(154, 135, 116, 0.22)" stroke-width="8" fill="none" stroke-linecap="round"></path>
+        <path class="map-region-soft" d="M80 132 L285 110 L350 210 L260 320 L98 286 Z"></path>
+        <path class="map-region" d="M178 262 L404 220 L474 328 L325 444 L140 394 Z"></path>
+        <path class="map-region-soft" d="M440 186 L666 158 L828 286 L718 420 L502 392 L434 280 Z"></path>
+        <path class="map-region-soft" d="M534 404 L776 388 L902 538 L694 628 L484 562 Z"></path>
+        <path class="map-water" d="M132 62 C248 172 304 250 330 350 C356 454 340 556 320 648 C354 620 402 584 450 530 C504 468 526 394 520 304 C514 216 458 128 364 62 C282 4 214 8 132 62 Z"></path>
+        <path class="map-road-major" d="M48 402 C172 360 262 360 372 404 C462 440 556 446 674 418 C812 388 902 388 974 424"></path>
+        <path class="map-road-major" d="M242 124 C370 136 486 164 612 230 C706 280 792 352 900 468"></path>
+        <path class="map-road-minor" d="M228 524 C356 484 470 474 598 496 C706 514 810 552 942 610"></path>
+        <path class="map-road-minor" d="M540 116 C608 170 654 230 690 302 C716 352 752 392 816 430"></path>
+        <path class="map-road-minor" d="M118 214 C188 252 240 302 280 360 C306 398 320 438 336 498"></path>
+        <text class="map-water-label" x="250" y="348" transform="rotate(-74 250 348)">Chao Phraya</text>
+        <text class="map-road-label" x="655" y="262">SUKHUMVIT CORRIDOR</text>
+        <text class="map-road-label" x="184" y="432">OLD TOWN GRID</text>
       </svg>
     `;
   }
 
   return `
     <svg viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true">
-      <rect width="1000" height="700" fill="var(--map-land)"></rect>
-      <path d="M0 460 C160 430 245 410 345 372 C445 332 585 300 670 264 C792 213 872 175 1000 118 L1000 700 L0 700 Z" fill="rgba(210, 201, 191, 0.42)"></path>
-      <path d="M160 190 C300 252 360 332 420 452 C470 552 552 612 668 610" stroke="rgba(183, 168, 153, 0.58)" stroke-width="58" fill="none" stroke-linecap="round"></path>
-      <path d="M150 310 C332 304 475 318 604 360 C725 398 845 394 972 338" stroke="var(--map-road)" stroke-width="16" fill="none" stroke-linecap="round"></path>
-      <path d="M355 160 C420 244 515 295 626 320 C735 344 832 336 934 286" stroke="rgba(154, 135, 116, 0.24)" stroke-width="9" fill="none" stroke-linecap="round"></path>
-      <path d="M268 502 C373 474 470 450 565 462 C695 478 804 532 920 626" stroke="rgba(154, 135, 116, 0.22)" stroke-width="8" fill="none" stroke-linecap="round"></path>
-    </svg>
+        <rect width="1000" height="700" fill="var(--map-land)"></rect>
+        <path class="map-water" d="M0 470 C160 438 248 420 350 376 C444 334 580 302 672 262 C792 212 876 174 1000 114 L1000 700 L0 700 Z"></path>
+        <path class="map-region-soft" d="M150 204 L332 174 L428 290 L292 388 L142 330 Z"></path>
+        <path class="map-region" d="M362 250 L566 214 L648 304 L544 406 L378 382 L320 306 Z"></path>
+        <path class="map-region-soft" d="M628 234 L840 190 L936 286 L884 404 L700 396 L614 312 Z"></path>
+        <path class="map-park" d="M196 470 C278 434 380 430 460 472 C420 556 332 602 240 574 C180 554 160 518 196 470 Z"></path>
+        <path class="map-road-major" d="M152 312 C328 306 478 320 608 360 C724 396 842 394 972 340"></path>
+        <path class="map-road-major" d="M174 188 C298 248 360 332 422 454 C470 550 556 614 668 612"></path>
+        <path class="map-road-minor" d="M346 160 C420 238 510 292 626 320 C736 346 832 338 934 286"></path>
+        <path class="map-road-minor" d="M268 502 C382 472 480 454 590 466 C710 478 816 532 920 624"></path>
+        <path class="map-road-minor" d="M468 210 C482 274 494 332 522 378 C552 428 608 452 692 466"></path>
+        <text class="map-water-label" x="680" y="522">Marina + Coast</text>
+        <text class="map-road-label" x="566" y="342">CITY CORE</text>
+        <text class="map-road-label" x="226" y="286">ORCHARD AXIS</text>
+      </svg>
   `;
 }
 
