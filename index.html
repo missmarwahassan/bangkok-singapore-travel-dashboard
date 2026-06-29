@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bangkok + Singapore Travel Dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Travel OS</p>
+          <h1>Bangkok + Singapore</h1>
+          <p class="hero-text">
+            A Notion-inspired dashboard for July 2026 with shopping-first Day 1
+            planning, no-pork visibility, nightlife priorities, and flexible
+            trip logging.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#day1-plan">Open Day 1</a>
+            <button class="button button-secondary" id="exportCsvButton" type="button">
+              Export Trip Log CSV
+            </button>
+            <a class="button button-ghost" href="./exports/trip_updates_template.csv" download>
+              Download Blank CSV
+            </a>
+          </div>
+        </div>
+        <aside class="hero-panel">
+          <div class="panel-card">
+            <p class="panel-label">Pinned Notes</p>
+            <ul class="pinned-list">
+              <li>Tichuca stays locked in as a planned night.</li>
+              <li>Tropic City is marked closed.</li>
+              <li>Haawm is cut from the shortlist.</li>
+              <li>Israeli places are excluded from surfaced picks.</li>
+            </ul>
+          </div>
+          <div class="panel-card emphasis">
+            <p class="panel-label">July 9 Mood</p>
+            <h2>Arrival + Shopping</h2>
+            <p>
+              Land at 12:50 AM, sleep, then go straight into outfits,
+              skincare, and an easy Sukhumvit night.
+            </p>
+          </div>
+        </aside>
+      </header>
+
+      <section class="summary-row" id="summaryRow"></section>
+
+      <section class="filters-card">
+        <div class="filters-header">
+          <div>
+            <p class="eyebrow">Filters</p>
+            <h2>Shape the dashboard</h2>
+          </div>
+          <button class="button button-ghost" id="resetFiltersButton" type="button">
+            Reset Filters
+          </button>
+        </div>
+        <div class="filters-grid">
+          <label>
+            <span>Search</span>
+            <input id="searchFilter" type="search" placeholder="Tichuca, coffee, skincare..." />
+          </label>
+          <label>
+            <span>City</span>
+            <select id="cityFilter"></select>
+          </label>
+          <label>
+            <span>Neighborhood</span>
+            <select id="areaFilter"></select>
+          </label>
+          <label>
+            <span>Category</span>
+            <select id="categoryFilter"></select>
+          </label>
+          <label>
+            <span>Mood</span>
+            <select id="moodFilter"></select>
+          </label>
+          <label>
+            <span>Price</span>
+            <select id="priceFilter"></select>
+          </label>
+          <label>
+            <span>Priority</span>
+            <select id="priorityFilter"></select>
+          </label>
+          <label>
+            <span>Status</span>
+            <select id="statusFilter"></select>
+          </label>
+        </div>
+        <div class="filter-toggles">
+          <label class="toggle">
+            <input id="porkSafeOnly" type="checkbox" />
+            <span>No-pork friendly only</span>
+          </label>
+          <label class="toggle">
+            <input id="classPassOnly" type="checkbox" />
+            <span>ClassPass capable only</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="map-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Map View</p>
+              <h2>Area pins + popups</h2>
+            </div>
+            <div class="chip-row" id="mapCityTabs"></div>
+          </div>
+          <div class="map-canvas-shell">
+            <div class="map-legend">
+              <span><i class="legend-dot priority-legend"></i> Priority pins</span>
+              <span><i class="legend-dot nightlife-legend"></i> Planned night</span>
+              <span><i class="legend-dot caution-legend"></i> Closed / cut / caution</span>
+            </div>
+            <div class="map-canvas" id="mapCanvas"></div>
+          </div>
+        </article>
+
+        <article class="spotlight-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Spotlight</p>
+              <h2>High-intent picks</h2>
+            </div>
+          </div>
+          <div class="spotlight-stack" id="spotlightStack"></div>
+        </article>
+      </section>
+
+      <section class="timeline-card" id="day1-plan">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Day 1 Shopping Plan</p>
+            <h2>Wednesday, July 9, 2026</h2>
+          </div>
+          <p class="section-note">
+            Built around a 12:50 AM arrival so clothes and beauty buys happen
+            before going out.
+          </p>
+        </div>
+        <div class="timeline-grid" id="day1Timeline"></div>
+      </section>
+
+      <section class="planner-card">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Trip Rhythm</p>
+            <h2>Daily planner snapshots</h2>
+          </div>
+        </div>
+        <div class="planner-grid" id="plannerGrid"></div>
+      </section>
+
+      <section class="section-stack" id="sectionsRoot"></section>
+    </div>
+
+    <div class="modal hidden" id="editorModal" aria-hidden="true">
+      <div class="modal-backdrop" data-close-modal="true"></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <button class="modal-close" id="closeModalButton" type="button" aria-label="Close">
+          ×
+        </button>
+        <div class="modal-header">
+          <p class="eyebrow">Edit Trip Log</p>
+          <h2 id="modalTitle">Place</h2>
+          <p id="modalMeta"></p>
+        </div>
+        <form id="editorForm" class="modal-form">
+          <label>
+            <span>Status</span>
+            <select id="editStatus"></select>
+          </label>
+          <label class="toggle">
+            <input id="editVisited" type="checkbox" />
+            <span>Visited</span>
+          </label>
+          <label>
+            <span>My Rating</span>
+            <input id="editRating" type="number" min="0" max="10" step="0.5" placeholder="0-10" />
+          </label>
+          <label>
+            <span>Review</span>
+            <textarea id="editReview" rows="4" placeholder="What stood out?"></textarea>
+          </label>
+          <label>
+            <span>Would Return</span>
+            <select id="editWouldReturn">
+              <option value="">Select</option>
+              <option value="Yes">Yes</option>
+              <option value="Maybe">Maybe</option>
+              <option value="No">No</option>
+            </select>
+          </label>
+          <label>
+            <span>Notes</span>
+            <textarea id="editNotes" rows="4" placeholder="Reservations, outfit notes, what to order..."></textarea>
+          </label>
+          <div class="modal-actions">
+            <button class="button button-secondary" id="resetPlaceButton" type="button">
+              Reset This Place
+            </button>
+            <button class="button button-primary" type="submit">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="./data/trip-data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
