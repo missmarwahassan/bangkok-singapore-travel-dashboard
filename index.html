@@ -27,114 +27,15 @@
             </a>
           </div>
         </div>
-        <aside class="hero-panel">
-          <div class="panel-card">
-            <p class="panel-label">Pinned Notes</p>
-            <ul class="pinned-list">
-              <li>Tichuca stays locked in as a planned night.</li>
-              <li>Tropic City is marked closed.</li>
-              <li>Haawm is cut from the shortlist.</li>
-              <li>Israeli places are excluded from surfaced picks.</li>
-            </ul>
-          </div>
-          <div class="panel-card emphasis">
-            <p class="panel-label">July 9 Mood</p>
-            <h2>Arrival + Shopping</h2>
-            <p>
-              Land at 12:50 AM, sleep, then go straight into outfits,
-              skincare, and an easy Sukhumvit night.
-            </p>
-          </div>
+        <aside class="panel-card emphasis hero-sidecard">
+          <p class="panel-label">July 9 Mood</p>
+          <h2>Arrival + Shopping</h2>
+          <p>
+            Land at 12:50 AM, sleep, then go straight into outfits,
+            skincare, and an easy Sukhumvit night.
+          </p>
         </aside>
       </header>
-
-      <section class="summary-row" id="summaryRow"></section>
-
-      <section class="filters-card">
-        <div class="filters-header">
-          <div>
-            <p class="eyebrow">Filters</p>
-            <h2>Shape the dashboard</h2>
-          </div>
-          <button class="button button-ghost" id="resetFiltersButton" type="button">
-            Reset Filters
-          </button>
-        </div>
-        <div class="filters-grid">
-          <label>
-            <span>Search</span>
-            <input id="searchFilter" type="search" placeholder="Tichuca, coffee, skincare..." />
-          </label>
-          <label>
-            <span>City</span>
-            <select id="cityFilter"></select>
-          </label>
-          <label>
-            <span>Neighborhood</span>
-            <select id="areaFilter"></select>
-          </label>
-          <label>
-            <span>Category</span>
-            <select id="categoryFilter"></select>
-          </label>
-          <label>
-            <span>Mood</span>
-            <select id="moodFilter"></select>
-          </label>
-          <label>
-            <span>Price</span>
-            <select id="priceFilter"></select>
-          </label>
-          <label>
-            <span>Priority</span>
-            <select id="priorityFilter"></select>
-          </label>
-          <label>
-            <span>Status</span>
-            <select id="statusFilter"></select>
-          </label>
-        </div>
-        <div class="filter-toggles">
-          <label class="toggle">
-            <input id="porkSafeOnly" type="checkbox" />
-            <span>No-pork friendly only</span>
-          </label>
-          <label class="toggle">
-            <input id="classPassOnly" type="checkbox" />
-            <span>ClassPass capable only</span>
-          </label>
-        </div>
-      </section>
-
-      <section class="dashboard-grid">
-        <article class="map-card">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Map View</p>
-              <h2>Area pins + popups</h2>
-            </div>
-            <div class="chip-row" id="mapCityTabs"></div>
-          </div>
-          <div class="map-canvas-shell">
-            <div class="map-legend">
-              <span><i class="legend-dot priority-legend"></i> Priority pins</span>
-              <span><i class="legend-dot nightlife-legend"></i> Planned night</span>
-              <span><i class="legend-dot caution-legend"></i> Closed / cut / caution</span>
-            </div>
-            <div class="map-canvas" id="mapCanvas"></div>
-          </div>
-        </article>
-
-        <article class="spotlight-card">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Spotlight</p>
-              <h2>High-intent picks</h2>
-            </div>
-          </div>
-          <div class="spotlight-stack" id="spotlightStack"></div>
-        </article>
-      </section>
 
       <section class="timeline-card" id="day1-plan">
         <div class="section-heading">
@@ -154,13 +55,128 @@
         <div class="section-heading">
           <div>
             <p class="eyebrow">Trip Rhythm</p>
-            <h2>Daily planner snapshots</h2>
+            <h2>Daily planner</h2>
+          </div>
+          <div class="planner-controls">
+            <button class="button button-ghost" id="plannerPrevButton" type="button">
+              Previous Day
+            </button>
+            <button class="button button-ghost" id="plannerNextButton" type="button">
+              Next Day
+            </button>
           </div>
         </div>
-        <div class="planner-grid" id="plannerGrid"></div>
+        <div class="planner-rail" id="plannerRail"></div>
+        <div class="planner-stage" id="plannerStage"></div>
       </section>
 
-      <section class="section-stack" id="sectionsRoot"></section>
+      <section class="explorer-shell">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Explore Places</p>
+            <h2>Filter, map, and compare</h2>
+          </div>
+          <p class="section-note" id="resultsSummary">
+            Browse the shortlist by city, neighborhood, category, mood, and trip status.
+          </p>
+        </div>
+
+        <section class="filters-card">
+          <div class="filters-header">
+            <div>
+              <p class="eyebrow">Filters</p>
+              <h2>Shape the dashboard</h2>
+            </div>
+            <button class="button button-ghost" id="resetFiltersButton" type="button">
+              Reset Filters
+            </button>
+          </div>
+          <div class="filters-grid">
+            <label>
+              <span>Search</span>
+              <input id="searchFilter" type="search" placeholder="Tichuca, coffee, skincare..." />
+            </label>
+            <label>
+              <span>City</span>
+              <select id="cityFilter"></select>
+            </label>
+            <label>
+              <span>Neighborhood</span>
+              <select id="areaFilter"></select>
+            </label>
+            <label>
+              <span>Category</span>
+              <select id="categoryFilter"></select>
+            </label>
+            <label>
+              <span>Mood</span>
+              <select id="moodFilter"></select>
+            </label>
+            <label>
+              <span>Price</span>
+              <select id="priceFilter"></select>
+            </label>
+            <label>
+              <span>Priority</span>
+              <select id="priorityFilter"></select>
+            </label>
+            <label>
+              <span>Status</span>
+              <select id="statusFilter"></select>
+            </label>
+          </div>
+          <div class="filter-toggles">
+            <label class="toggle">
+              <input id="porkSafeOnly" type="checkbox" />
+              <span>No-pork friendly only</span>
+            </label>
+            <label class="toggle">
+              <input id="classPassOnly" type="checkbox" />
+              <span>ClassPass capable only</span>
+            </label>
+          </div>
+        </section>
+
+        <section class="dashboard-grid">
+          <article class="map-card">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Map View</p>
+                <h2>Zoom, pan, and inspect areas</h2>
+              </div>
+              <div class="map-actions">
+                <div class="chip-row" id="mapCityTabs"></div>
+                <div class="chip-row">
+                  <button class="map-tab" type="button" data-map-control="zoom-in">+</button>
+                  <button class="map-tab" type="button" data-map-control="zoom-out">−</button>
+                  <button class="map-tab" type="button" data-map-control="reset">Reset</button>
+                </div>
+              </div>
+            </div>
+            <div class="map-canvas-shell">
+              <div class="map-legend">
+                <span><i class="legend-dot priority-legend"></i> Priority pins</span>
+                <span><i class="legend-dot nightlife-legend"></i> Planned night</span>
+                <span><i class="legend-dot caution-legend"></i> Closed / cut / caution</span>
+              </div>
+              <div class="map-canvas" id="mapCanvas"></div>
+              <div class="map-detail" id="mapDetail"></div>
+            </div>
+          </article>
+
+          <article class="spotlight-card">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Spotlight</p>
+                <h2>High-intent picks</h2>
+              </div>
+            </div>
+            <div class="spotlight-stack" id="spotlightStack"></div>
+          </article>
+        </section>
+
+        <section class="section-stack" id="sectionsRoot"></section>
+      </section>
     </div>
 
     <div class="modal hidden" id="editorModal" aria-hidden="true">

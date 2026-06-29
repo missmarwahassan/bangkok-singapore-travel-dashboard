@@ -16,20 +16,27 @@ const mapBounds = {
 };
 const mapLabels = {
   Bangkok: [
-    { label: "Song Wat", x: 18, y: 28 },
-    { label: "Thong Lo", x: 72, y: 44 },
-    { label: "Phrom Phong", x: 56, y: 48 },
-    { label: "Sathorn", x: 43, y: 62 },
-    { label: "Old Town", x: 20, y: 56 },
+    { label: "Song Wat", left: 19, top: 30 },
+    { label: "Old Town", left: 24, top: 45 },
+    { label: "Sathorn", left: 45, top: 52 },
+    { label: "Phrom Phong", left: 62, top: 43 },
+    { label: "Thong Lo", left: 74, top: 44 },
+    { label: "Ari", left: 57, top: 24 },
   ],
   Singapore: [
-    { label: "Orchard", x: 30, y: 44 },
-    { label: "City Hall", x: 52, y: 54 },
-    { label: "Kampong Glam", x: 62, y: 46 },
-    { label: "Chinatown", x: 38, y: 68 },
-    { label: "Joo Chiat", x: 79, y: 42 },
+    { label: "Orchard", left: 32, top: 48 },
+    { label: "City Hall", left: 50, top: 54 },
+    { label: "Kampong Glam", left: 60, top: 46 },
+    { label: "Chinatown", left: 39, top: 65 },
+    { label: "Joo Chiat", left: 78, top: 42 },
   ],
 };
+const mapViews = {
+  Bangkok: { scale: 1.08, x: 0, y: 0 },
+  Singapore: { scale: 1.15, x: 0, y: 0 },
+};
+const defaultResultsSummary =
+  "Browse the shortlist by city, neighborhood, category, mood, and trip status.";
 
 const state = {
   filters: {
@@ -48,16 +55,22 @@ const state = {
   mapCity: "Bangkok",
   activePlaceId: null,
   editingPlaceId: null,
+  plannerIndex: 0,
+  draggingMap: null,
 };
 
 const elements = {
-  summaryRow: document.getElementById("summaryRow"),
-  spotlightStack: document.getElementById("spotlightStack"),
   day1Timeline: document.getElementById("day1Timeline"),
-  plannerGrid: document.getElementById("plannerGrid"),
+  plannerRail: document.getElementById("plannerRail"),
+  plannerStage: document.getElementById("plannerStage"),
+  plannerPrevButton: document.getElementById("plannerPrevButton"),
+  plannerNextButton: document.getElementById("plannerNextButton"),
+  resultsSummary: document.getElementById("resultsSummary"),
+  spotlightStack: document.getElementById("spotlightStack"),
   sectionsRoot: document.getElementById("sectionsRoot"),
   mapCityTabs: document.getElementById("mapCityTabs"),
   mapCanvas: document.getElementById("mapCanvas"),
+  mapDetail: document.getElementById("mapDetail"),
   exportCsvButton: document.getElementById("exportCsvButton"),
   resetFiltersButton: document.getElementById("resetFiltersButton"),
   editorModal: document.getElementById("editorModal"),
@@ -101,7 +114,10 @@ function bindEvents() {
     control.addEventListener(eventName, () => {
       state.filters[key] = control.type === "checkbox" ? control.checked : control.value;
       if (key === "city") {
-        adjustMapCityForFilter();
+        if (state.filters.city === "Bangkok" || state.filters.city === "Singapore") {
+          state.mapCity = state.filters.city;
+        }
+        populateFilterOptions();
       }
       renderAll();
     });
@@ -115,6 +131,13 @@ function bindEvents() {
       closeModal();
     }
   });
+  elements.editorForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    savePlaceEdits();
+  });
+  elements.resetPlaceButton.addEventListener("click", resetPlaceEdits);
+  elements.plannerPrevButton.addEventListener("click", () => shiftPlanner(-1));
+  elements.plannerNextButton.addEventListener("click", () => shiftPlanner(1));
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !elements.editorModal.classList.contains("hidden")) {
@@ -123,18 +146,40 @@ function bindEvents() {
   });
 
   document.addEventListener("click", (event) => {
-    const trigger = event.target.closest("[data-edit-place]");
-    if (trigger) {
-      openEditor(trigger.dataset.editPlace);
+    const editTrigger = event.target.closest("[data-edit-place]");
+    if (editTrigger) {
+      openEditor(editTrigger.dataset.editPlace);
+      return;
+    }
+
+    const plannerTrigger = event.target.closest("[data-planner-index]");
+    if (plannerTrigger) {
+      state.plannerIndex = Number(plannerTrigger.dataset.plannerIndex);
+      renderPlanner();
+      return;
+    }
+
+    const cityTrigger = event.target.closest("[data-map-city]");
+    if (cityTrigger) {
+      state.mapCity = cityTrigger.dataset.mapCity;
+      state.activePlaceId = null;
+      renderMapTabs(getFilteredPlaces());
+      renderMap(getFilteredPlaces());
+      return;
+    }
+
+    const placeTrigger = event.target.closest("[data-map-place]");
+    if (placeTrigger) {
+      state.activePlaceId = placeTrigger.dataset.mapPlace;
+      renderMap(getFilteredPlaces());
+      return;
+    }
+
+    const mapControl = event.target.closest("[data-map-control]");
+    if (mapControl) {
+      adjustMapView(mapControl.dataset.mapControl);
     }
   });
-
-  elements.editorForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    savePlaceEdits();
-  });
-
-  elements.resetPlaceButton.addEventListener("click", resetPlaceEdits);
 }
 
 function loadEdits() {
@@ -157,13 +202,17 @@ function getPlaceView(place) {
   const edits = state.edits[place.id] || {};
   const visited = edits.visited ?? place.defaults?.visited ?? false;
   const baseStatus = edits.status || place.status;
-  const derivedStatus =
+  const effectiveStatus =
     visited && !["Closed", "Cut"].includes(baseStatus) ? "Visited" : baseStatus;
+  const neighborhood = deriveNeighborhood(place);
+  const filterCategory = deriveCategory(place);
   return {
     ...place,
     edits,
     visited,
-    effectiveStatus: derivedStatus,
+    effectiveStatus,
+    neighborhood,
+    filterCategory,
     myRating: edits.myRating ?? place.defaults?.myRating ?? "",
     review: edits.review ?? place.defaults?.review ?? "",
     wouldReturn: edits.wouldReturn ?? place.defaults?.wouldReturn ?? "",
@@ -175,49 +224,112 @@ function getAllPlaces() {
   return data.places.map(getPlaceView);
 }
 
+function deriveCategory(place) {
+  const raw = String(place.category || "").toLowerCase();
+  if (raw.includes("restaurant") || raw.includes("dessert")) return "Food";
+  if (raw.includes("coffee")) return "Coffee";
+  if (raw.includes("cocktails")) return "Cocktails";
+  if (raw.includes("wellness")) return "Wellness";
+  if (raw.includes("fitness")) return "Fitness/ClassPass";
+  if (
+    raw.includes("shopping") ||
+    raw.includes("designer") ||
+    raw.includes("luxury") ||
+    raw.includes("tea")
+  ) {
+    return "Shopping";
+  }
+  if (raw.includes("day trip")) return "Day Trip";
+  return "Experience";
+}
+
+function deriveNeighborhood(place) {
+  const text = `${place.area} ${place.name}`.toLowerCase();
+  if (place.cityGroup === "Bangkok") {
+    if (text.includes("song wat")) return "Song Wat";
+    if (text.includes("talat noi")) return "Talat Noi";
+    if (
+      text.includes("old town") ||
+      text.includes("chinatown") ||
+      text.includes("charoen krung") ||
+      text.includes("bang rak") ||
+      text.includes("river city") ||
+      text.includes("warehouse 30") ||
+      text.includes("soi nana")
+    ) {
+      return "Old Town / Chinatown";
+    }
+    if (text.includes("thong lo") || text.includes("ekkamai")) return "Thong Lo / Ekkamai";
+    if (text.includes("phrom phong") || text.includes("emsphere") || text.includes("emquartier")) {
+      return "Phrom Phong";
+    }
+    if (text.includes("asok") || text.includes("sukhumvit 31")) return "Asok";
+    if (text.includes("sathorn") || text.includes("silom") || text.includes("dusit")) {
+      return "Sathorn / Silom";
+    }
+    if (
+      text.includes("chit lom") ||
+      text.includes("phloen chit") ||
+      text.includes("siam") ||
+      text.includes("pratunam")
+    ) {
+      return "Siam / Chit Lom";
+    }
+    if (text.includes("ari") || text.includes("phaya thai")) return "Ari / Phaya Thai";
+    if (text.includes("bang krachao")) return "Bang Krachao";
+    if (text.includes("koh larn") || text.includes("pattaya")) return "Koh Larn / Pattaya";
+    if (text.includes("sukhumvit")) return "Sukhumvit";
+    return "Flexible Bangkok";
+  }
+
+  if (text.includes("orchard")) return "Orchard";
+  if (text.includes("city hall") || text.includes("marina bay")) return "City Hall / Marina Bay";
+  if (text.includes("kampong glam") || text.includes("bugis")) return "Kampong Glam / Bugis";
+  if (
+    text.includes("chinatown") ||
+    text.includes("ann siang") ||
+    text.includes("amoy") ||
+    text.includes("tras") ||
+    text.includes("tanjong pagar")
+  ) {
+    return "Chinatown / CBD";
+  }
+  if (text.includes("dempsey")) return "Dempsey";
+  if (text.includes("tiong bahru") || text.includes("river valley")) return "Tiong Bahru / River Valley";
+  if (text.includes("joo chiat") || text.includes("east coast")) return "Joo Chiat / East Coast";
+  if (text.includes("airport")) return "Airport";
+  if (text.includes("sentosa")) return "Sentosa";
+  if (text.includes("little india") || text.includes("dhoby ghaut") || text.includes("kovan")) {
+    return "Little India / Dhoby Ghaut";
+  }
+  return "Flexible Singapore";
+}
+
 function matchesFilter(place) {
   const { filters } = state;
   const searchTarget = [
     place.name,
     place.city,
+    place.neighborhood,
+    place.filterCategory,
     place.area,
-    place.category,
     place.bestFor,
     place.doOrder,
     place.notes,
   ]
     .join(" ")
     .toLowerCase();
-  if (filters.search && !searchTarget.includes(filters.search.toLowerCase().trim())) {
-    return false;
-  }
-  if (filters.city !== "All" && place.city !== filters.city && place.cityGroup !== filters.city) {
-    return false;
-  }
-  if (filters.area !== "All" && place.area !== filters.area) {
-    return false;
-  }
-  if (filters.category !== "All" && place.category !== filters.category) {
-    return false;
-  }
-  if (filters.mood !== "All" && place.mood !== filters.mood) {
-    return false;
-  }
-  if (filters.price !== "All" && place.price !== filters.price) {
-    return false;
-  }
-  if (filters.priority !== "All" && place.priority !== filters.priority) {
-    return false;
-  }
-  if (filters.status !== "All" && place.effectiveStatus !== filters.status) {
-    return false;
-  }
-  if (filters.porkSafeOnly && place.porkFriendly !== "Yes") {
-    return false;
-  }
-  if (filters.classPassOnly && !String(place.classPass).includes("Yes")) {
-    return false;
-  }
+
+  if (filters.search && !searchTarget.includes(filters.search.toLowerCase().trim())) return false;
+  if (filters.city !== "All" && place.cityGroup !== filters.city) return false;
+  if (filters.area !== "All" && place.neighborhood !== filters.area) return false;
+  if (filters.category !== "All" && place.filterCategory !== filters.category) return false;
+  if (filters.mood !== "All" && place.mood !== filters.mood) return false;
+  if (filters.price !== "All" && place.price !== filters.price) return false;
+  if (filters.priority !== "All" && place.priority !== filters.priority) return false;
+  if (filters.status !== "All" && place.effectiveStatus !== filters.status) return false;
+  if (filters.porkSafeOnly && place.porkFriendly !== "Yes") return false;
+  if (filters.classPassOnly && !String(place.classPass).includes("Yes")) return false;
   return true;
 }
 
@@ -236,97 +348,23 @@ function sortPlaces(a, b) {
 
 function renderAll() {
   const filtered = getFilteredPlaces();
-  if (filtered.length && !filtered.some((place) => place.cityGroup === state.mapCity)) {
-    state.mapCity = filtered[0].cityGroup;
-  }
+  populateFilterOptions();
   syncFilterControls();
-  renderSummary(filtered);
-  renderSpotlights(filtered);
+  renderResultsSummary(filtered);
   renderDay1();
   renderPlanner();
+  renderSpotlights(filtered);
   renderMapTabs(filtered);
   renderMap(filtered);
   renderSections(filtered);
 }
 
-function renderSummary(filtered) {
-  const plannedNight = filtered.filter((place) => place.effectiveStatus === "Planned Night").length;
-  const porkSafe = filtered.filter((place) => place.porkFriendly === "Yes").length;
-  const singapore = filtered.filter((place) => place.cityGroup === "Singapore").length;
-  const classPass = filtered.filter((place) => String(place.classPass).includes("Yes")).length;
-  const closedOrCut = filtered.filter((place) =>
-    ["Closed", "Cut"].includes(place.effectiveStatus)
-  ).length;
-
-  const cards = [
-    {
-      label: "Visible Picks",
-      value: filtered.length,
-      note: "What matches your current filters right now.",
-    },
-    {
-      label: "Planned Night",
-      value: plannedNight,
-      note: "Tichuca stays front and center.",
-    },
-    {
-      label: "No-Pork Friendly",
-      value: porkSafe,
-      note: "Entries already marked safe.",
-    },
-    {
-      label: "Singapore",
-      value: singapore,
-      note: "Short-trip items held separately too.",
-    },
-    {
-      label: "ClassPass",
-      value: classPass,
-      note: `${closedOrCut} closed or cut items kept in view for context.`,
-    },
-  ];
-
-  elements.summaryRow.innerHTML = cards
-    .map(
-      (card) => `
-        <article class="summary-card">
-          <p class="summary-label">${escapeHtml(card.label)}</p>
-          <p class="summary-value">${escapeHtml(String(card.value))}</p>
-          <p class="summary-note">${escapeHtml(card.note)}</p>
-        </article>
-      `
-    )
-    .join("");
-}
-
-function renderSpotlights(filtered) {
-  const spotlightIds = ["tichuca-rooftop-bar-night", "song-wat-neighborhood-crawl", "eveandboy"];
-  const spotlightPlaces = spotlightIds
-    .map((id) => filtered.find((place) => place.id === id) || getAllPlaces().find((place) => place.id === id))
-    .filter(Boolean);
-
-  elements.spotlightStack.innerHTML = spotlightPlaces
-    .map(
-      (place) => `
-        <article class="spotlight-item">
-          <div class="card-chips">
-            ${renderStatusPill(place.effectiveStatus)}
-            <span class="chip priority">${escapeHtml(place.priority)}</span>
-          </div>
-          <h3>${escapeHtml(place.name)}</h3>
-          <p class="card-subtitle">${escapeHtml(place.city)} · ${escapeHtml(place.area)}</p>
-          <p class="card-notes">${escapeHtml(place.notes)}</p>
-          <div class="card-actions">
-            <button class="card-button" type="button" data-edit-place="${escapeHtml(place.id)}">
-              Edit trip log
-            </button>
-            ${place.sourceUrl ? `<a class="card-button link" href="${escapeAttribute(place.sourceUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
-          </div>
-        </article>
-      `
-    )
-    .join("");
-
+function renderResultsSummary(filtered) {
+  const label =
+    filtered.length === getAllPlaces().length
+      ? defaultResultsSummary
+      : `${filtered.length} places match the current filters.`;
+  elements.resultsSummary.textContent = label;
 }
 
 function renderDay1() {
@@ -347,23 +385,75 @@ function renderDay1() {
 }
 
 function renderPlanner() {
-  const highlights = data.dailyPlanner.filter((entry) =>
-    ["2026-07-09", "2026-07-11", "2026-07-13", "TBD"].includes(entry.Date)
-  );
-  elements.plannerGrid.innerHTML = highlights
+  const entries = data.dailyPlanner;
+  if (state.plannerIndex >= entries.length) state.plannerIndex = 0;
+  const active = entries[state.plannerIndex];
+
+  elements.plannerRail.innerHTML = entries
     .map(
-      (entry) => `
-        <article class="planner-item">
-          <div>
-            <p class="planner-date">${escapeHtml(entry.Date)}</p>
-            <h3>${escapeHtml(entry.Mood)}</h3>
+      (entry, index) => `
+        <button class="planner-pill ${index === state.plannerIndex ? "active" : ""}" type="button" data-planner-index="${index}">
+          ${escapeHtml(entry.Date)} · ${escapeHtml(entry.Mood)}
+        </button>
+      `
+    )
+    .join("");
+
+  elements.plannerStage.innerHTML = `
+    <p class="planner-date">${escapeHtml(active.Date)} · ${escapeHtml(active.City)}</p>
+    <h3>${escapeHtml(active.Mood)}</h3>
+    <p class="card-notes">${escapeHtml(active.Notes)}</p>
+    <div class="planner-stage-grid">
+      ${renderPlannerSlot("Morning", active.Morning)}
+      ${renderPlannerSlot("Workout", active.Workout)}
+      ${renderPlannerSlot("Lunch", active.Lunch)}
+      ${renderPlannerSlot("Afternoon", active.Afternoon)}
+      ${renderPlannerSlot("Dinner", active.Dinner)}
+      ${renderPlannerSlot("Night", active.Night)}
+      ${renderPlannerSlot("Reservations", active["Reservation Needed"])}
+    </div>
+  `;
+}
+
+function renderPlannerSlot(label, value) {
+  return `
+    <article class="planner-slot">
+      <strong>${escapeHtml(label)}</strong>
+      <span>${escapeHtml(value || "—")}</span>
+    </article>
+  `;
+}
+
+function shiftPlanner(delta) {
+  const total = data.dailyPlanner.length;
+  state.plannerIndex = (state.plannerIndex + delta + total) % total;
+  renderPlanner();
+}
+
+function renderSpotlights(filtered) {
+  const spotlightIds = ["tichuca-rooftop-bar-night", "song-wat-neighborhood-crawl", "eveandboy"];
+  const spotlightPlaces = spotlightIds
+    .map((id) => filtered.find((place) => place.id === id) || getAllPlaces().find((place) => place.id === id))
+    .filter(Boolean);
+
+  elements.spotlightStack.innerHTML = spotlightPlaces
+    .map(
+      (place) => `
+        <article class="spotlight-item">
+          <div class="card-chips">
+            ${renderStatusPill(place.effectiveStatus)}
+            <span class="chip priority">${escapeHtml(place.priority)}</span>
+            <span class="chip">${escapeHtml(place.filterCategory)}</span>
           </div>
-          <div class="card-meta">
-            <div><strong>Morning:</strong> ${escapeHtml(entry.Morning)}</div>
-            <div><strong>Afternoon:</strong> ${escapeHtml(entry.Afternoon)}</div>
-            <div><strong>Night:</strong> ${escapeHtml(entry.Night)}</div>
+          <h3>${escapeHtml(place.name)}</h3>
+          <p class="card-subtitle">${escapeHtml(place.cityGroup)} · ${escapeHtml(place.neighborhood)}</p>
+          <p class="card-notes">${escapeHtml(place.notes)}</p>
+          <div class="card-actions">
+            <button class="card-button" type="button" data-edit-place="${escapeHtml(place.id)}">
+              Edit trip log
+            </button>
+            ${place.sourceUrl ? `<a class="card-button link" href="${escapeAttribute(place.sourceUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
           </div>
-          <p class="card-notes">${escapeHtml(entry.Notes)}</p>
         </article>
       `
     )
@@ -375,6 +465,7 @@ function renderMapTabs(filtered) {
     city,
     count: filtered.filter((place) => place.cityGroup === city).length,
   }));
+
   elements.mapCityTabs.innerHTML = counts
     .map(
       ({ city, count }) => `
@@ -384,92 +475,192 @@ function renderMapTabs(filtered) {
       `
     )
     .join("");
-
-  elements.mapCityTabs.querySelectorAll("[data-map-city]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.mapCity = button.dataset.mapCity;
-      state.activePlaceId = null;
-      renderMap(filtered);
-      renderMapTabs(filtered);
-    });
-  });
 }
 
 function renderMap(filtered) {
   const city = state.mapCity;
   const places = filtered.filter((place) => place.cityGroup === city);
-  const fallbackPlace = places[0] || null;
-  if (!state.activePlaceId || !places.some((place) => place.id === state.activePlaceId)) {
-    state.activePlaceId = fallbackPlace?.id || null;
+  if (!places.length) {
+    elements.mapCanvas.innerHTML = `<div class="map-hud"><p class="map-hint">No visible places in ${escapeHtml(city)} for the current filters.</p></div>`;
+    elements.mapDetail.innerHTML = `<p class="map-hint">Try loosening a filter or switching city tabs.</p>`;
+    return;
   }
+
+  if (!state.activePlaceId || !places.some((place) => place.id === state.activePlaceId)) {
+    state.activePlaceId = places[0].id;
+  }
+
+  const activePlace = places.find((place) => place.id === state.activePlaceId) || places[0];
+  const view = mapViews[city];
 
   const labelsMarkup = mapLabels[city]
     .map(
       (item) =>
-        `<div class="map-label" style="left:${item.x}%; top:${item.y}%;">${escapeHtml(item.label)}</div>`
+        `<div class="map-label" style="left:${item.left}%; top:${item.top}%;">${escapeHtml(item.label)}</div>`
     )
     .join("");
 
   const pinsMarkup = places
     .map((place) => {
-      const { left, top } = projectToMap(city, place.lat, place.lng);
-      const pinClass = getPinClass(place);
+      const point = projectToMap(city, place.lat, place.lng);
       return `
         <button
-          class="pin-button ${pinClass} ${state.activePlaceId === place.id ? "active" : ""}"
+          class="pin-button ${getPinClass(place)} ${place.id === activePlace.id ? "active" : ""}"
           type="button"
           data-map-place="${escapeHtml(place.id)}"
-          style="left:${left}%; top:${top}%; transform: translate(-50%, -50%);"
+          style="left:${point.left}%; top:${point.top}%;"
           aria-label="${escapeAttribute(place.name)}"
         ></button>
       `;
     })
     .join("");
 
-  const activePlace = places.find((place) => place.id === state.activePlaceId) || null;
-  const popupMarkup = activePlace ? renderMapPopup(city, activePlace) : "";
-
   elements.mapCanvas.innerHTML = `
-    ${labelsMarkup}
-    ${pinsMarkup}
-    ${popupMarkup}
-  `;
-
-  elements.mapCanvas.querySelectorAll("[data-map-place]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.activePlaceId = button.dataset.mapPlace;
-      renderMap(filtered);
-    });
-  });
-}
-
-function renderMapPopup(city, place) {
-  const { left, top } = projectToMap(city, place.lat, place.lng);
-  const popupLeft = Math.min(Math.max(left + 4, 4), 58);
-  const popupTop = Math.min(Math.max(top - 8, 8), 62);
-  return `
-    <div class="pin-popup" style="left:${popupLeft}%; top:${popupTop}%;">
-      <div class="card-chips">
-        ${renderStatusPill(place.effectiveStatus)}
-        <span class="chip">${escapeHtml(place.category)}</span>
-      </div>
-      <h3>${escapeHtml(place.name)}</h3>
-      <p>${escapeHtml(place.area)} · ${escapeHtml(place.bestFor || place.notes)}</p>
-      <div class="card-actions" style="margin-top:12px;">
-        <button class="card-button" type="button" data-edit-place="${escapeHtml(place.id)}">Edit</button>
-        ${place.sourceUrl ? `<a class="card-button link" href="${escapeAttribute(place.sourceUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
+    <div class="map-hud">
+      <p class="map-hint">Drag to move. Use zoom controls for closer neighborhood views.</p>
+      <p class="map-hint">${escapeHtml(city)} · ${places.length} visible pins</p>
+    </div>
+    <div class="map-viewport" id="mapViewport">
+      <div
+        class="map-layer"
+        id="mapLayer"
+        style="transform: translate(${view.x}px, ${view.y}px) scale(${view.scale});"
+      >
+        <div class="map-background">${renderMapBackground(city)}</div>
+        ${labelsMarkup}
+        ${pinsMarkup}
       </div>
     </div>
+  `;
+
+  renderMapDetail(activePlace);
+  attachMapInteractions(city);
+}
+
+function renderMapDetail(place) {
+  const placeCount = getFilteredPlaces().filter((item) => item.cityGroup === place.cityGroup).length;
+  const porkCopy =
+    place.porkFriendly === "Yes"
+      ? "No-pork friendly"
+      : `Dietary note: ${place.porkFriendly}`;
+  elements.mapDetail.innerHTML = `
+    <div class="card-chips">
+      ${renderStatusPill(place.effectiveStatus)}
+      <span class="chip">${escapeHtml(place.filterCategory)}</span>
+      <span class="chip">${escapeHtml(place.neighborhood)}</span>
+    </div>
+    <h3>${escapeHtml(place.name)}</h3>
+    <p>${escapeHtml(place.cityGroup)} · ${escapeHtml(place.area)} · ${escapeHtml(place.bestFor || "Flexible pick")}</p>
+    <div class="card-meta" style="margin-top:12px;">
+      <div><strong>Mood:</strong> ${escapeHtml(place.mood)}</div>
+      <div><strong>Priority:</strong> ${escapeHtml(place.priority)}</div>
+      <div><strong>Map view:</strong> ${placeCount} visible places in this city right now</div>
+      <div><strong>Dietary:</strong> ${escapeHtml(porkCopy)}</div>
+      <div><strong>What to do:</strong> ${escapeHtml(place.doOrder || "Use source + notes")}</div>
+    </div>
+    <p class="card-notes" style="margin-top:12px;">${escapeHtml(place.notes)}</p>
+    ${
+      place.personalNotes
+        ? `<p class="note-row"><strong>Your notes:</strong> ${escapeHtml(place.personalNotes)}</p>`
+        : ""
+    }
+    <div class="map-detail-actions" style="margin-top:12px;">
+      <a class="card-button link" href="#card-${escapeAttribute(place.id)}">Jump to card</a>
+      <button class="card-button" type="button" data-edit-place="${escapeHtml(place.id)}">Edit fields</button>
+      ${place.sourceUrl ? `<a class="card-button link" href="${escapeAttribute(place.sourceUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
+    </div>
+  `;
+}
+
+function attachMapInteractions(city) {
+  const viewport = document.getElementById("mapViewport");
+  const layer = document.getElementById("mapLayer");
+  if (!viewport || !layer) return;
+
+  viewport.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault();
+      const delta = event.deltaY < 0 ? 0.12 : -0.12;
+      const next = clamp(mapViews[city].scale + delta, 0.9, 2.8);
+      mapViews[city].scale = next;
+      layer.style.transform = mapTransform(city);
+    },
+    { passive: false }
+  );
+
+  viewport.addEventListener("pointerdown", (event) => {
+    if (event.target.closest("[data-map-place]")) return;
+    state.draggingMap = {
+      city,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: mapViews[city].x,
+      originY: mapViews[city].y,
+    };
+    viewport.classList.add("is-dragging");
+  });
+
+  viewport.addEventListener("pointermove", (event) => {
+    if (!state.draggingMap || state.draggingMap.city !== city) return;
+    mapViews[city].x = state.draggingMap.originX + (event.clientX - state.draggingMap.startX);
+    mapViews[city].y = state.draggingMap.originY + (event.clientY - state.draggingMap.startY);
+    layer.style.transform = mapTransform(city);
+  });
+
+  const endDrag = () => {
+    state.draggingMap = null;
+    viewport.classList.remove("is-dragging");
+  };
+  viewport.addEventListener("pointerup", endDrag);
+  viewport.addEventListener("pointerleave", endDrag);
+}
+
+function adjustMapView(action) {
+  const city = state.mapCity;
+  if (action === "zoom-in") mapViews[city].scale = clamp(mapViews[city].scale + 0.16, 0.9, 2.8);
+  if (action === "zoom-out") mapViews[city].scale = clamp(mapViews[city].scale - 0.16, 0.9, 2.8);
+  if (action === "reset") mapViews[city] = city === "Bangkok" ? { scale: 1.08, x: 0, y: 0 } : { scale: 1.15, x: 0, y: 0 };
+  renderMap(getFilteredPlaces());
+}
+
+function mapTransform(city) {
+  return `translate(${mapViews[city].x}px, ${mapViews[city].y}px) scale(${mapViews[city].scale})`;
+}
+
+function renderMapBackground(city) {
+  if (city === "Bangkok") {
+    return `
+      <svg viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true">
+        <rect width="1000" height="700" fill="var(--map-land)"></rect>
+        <path d="M0 210 C170 160 250 175 360 220 C450 258 520 248 620 210 C720 171 810 170 1000 228 L1000 700 L0 700 Z" fill="rgba(212, 201, 190, 0.35)"></path>
+        <path d="M0 405 C160 360 230 376 320 418 C405 457 530 456 645 415 C777 368 882 370 1000 430" stroke="var(--map-road)" stroke-width="18" fill="none" stroke-linecap="round"></path>
+        <path d="M120 80 C220 170 290 260 320 370 C335 430 340 492 325 590" stroke="rgba(184, 170, 155, 0.65)" stroke-width="72" fill="none" stroke-linecap="round"></path>
+        <path d="M200 118 C420 130 564 190 742 288 C820 332 886 392 948 484" stroke="rgba(154, 135, 116, 0.25)" stroke-width="10" fill="none" stroke-linecap="round"></path>
+        <path d="M250 540 C420 470 570 455 760 482 C840 494 896 514 965 552" stroke="rgba(154, 135, 116, 0.22)" stroke-width="8" fill="none" stroke-linecap="round"></path>
+      </svg>
+    `;
+  }
+
+  return `
+    <svg viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true">
+      <rect width="1000" height="700" fill="var(--map-land)"></rect>
+      <path d="M0 460 C160 430 245 410 345 372 C445 332 585 300 670 264 C792 213 872 175 1000 118 L1000 700 L0 700 Z" fill="rgba(210, 201, 191, 0.42)"></path>
+      <path d="M160 190 C300 252 360 332 420 452 C470 552 552 612 668 610" stroke="rgba(183, 168, 153, 0.58)" stroke-width="58" fill="none" stroke-linecap="round"></path>
+      <path d="M150 310 C332 304 475 318 604 360 C725 398 845 394 972 338" stroke="var(--map-road)" stroke-width="16" fill="none" stroke-linecap="round"></path>
+      <path d="M355 160 C420 244 515 295 626 320 C735 344 832 336 934 286" stroke="rgba(154, 135, 116, 0.24)" stroke-width="9" fill="none" stroke-linecap="round"></path>
+      <path d="M268 502 C373 474 470 450 565 462 C695 478 804 532 920 626" stroke="rgba(154, 135, 116, 0.22)" stroke-width="8" fill="none" stroke-linecap="round"></path>
+    </svg>
   `;
 }
 
 function projectToMap(city, lat, lng) {
   const bounds = mapBounds[city];
-  const left = ((lng - bounds.lngMin) / (bounds.lngMax - bounds.lngMin)) * 84 + 8;
-  const top = (1 - (lat - bounds.latMin) / (bounds.latMax - bounds.latMin)) * 74 + 10;
+  const left = ((lng - bounds.lngMin) / (bounds.lngMax - bounds.lngMin)) * 82 + 9;
+  const top = (1 - (lat - bounds.latMin) / (bounds.latMax - bounds.latMin)) * 76 + 9;
   return {
     left: clamp(left, 8, 92),
-    top: clamp(top, 10, 88),
+    top: clamp(top, 8, 92),
   };
 }
 
@@ -507,26 +698,26 @@ function renderSections(filtered) {
       `
     )
     .join("");
-
 }
 
 function renderCard(place) {
-  const visiblePorkNote =
+  const porkNote =
     place.porkFriendly !== "Yes"
       ? `Pork note: ${place.porkFriendly}. ${place.doOrder || place.notes}`
       : `No-pork note: ${place.doOrder || "No specific dietary note added yet."}`;
 
   return `
-    <article class="card">
+    <article class="card" id="card-${escapeAttribute(place.id)}">
       <div class="card-header">
         <div>
           <h3 class="card-title">${escapeHtml(place.name)}</h3>
-          <p class="card-subtitle">${escapeHtml(place.city)} · ${escapeHtml(place.area)}</p>
+          <p class="card-subtitle">${escapeHtml(place.cityGroup)} · ${escapeHtml(place.neighborhood)}</p>
         </div>
         ${renderStatusPill(place.effectiveStatus)}
       </div>
       <div class="card-chips">
         <span class="chip priority">${escapeHtml(place.priority)}</span>
+        <span class="chip">${escapeHtml(place.filterCategory)}</span>
         <span class="chip">${escapeHtml(place.price)}</span>
         <span class="chip">${escapeHtml(place.mood)}</span>
         ${
@@ -541,6 +732,8 @@ function renderCard(place) {
         }
       </div>
       <div class="card-meta">
+        <div><strong>Neighborhood:</strong> ${escapeHtml(place.neighborhood)}</div>
+        <div><strong>Area detail:</strong> ${escapeHtml(place.area || "—")}</div>
         <div><strong>Best for:</strong> ${escapeHtml(place.bestFor || "Flexible stop")}</div>
         <div><strong>Order / do:</strong> ${escapeHtml(place.doOrder || "Use the notes + source link")}</div>
         <div><strong>Reservation:</strong> ${escapeHtml(place.reservation)}</div>
@@ -548,12 +741,10 @@ function renderCard(place) {
         ${place.wouldReturn ? `<div><strong>Would return:</strong> ${escapeHtml(place.wouldReturn)}</div>` : ""}
       </div>
       <p class="card-notes">${escapeHtml(place.notes)}</p>
-      <p class="note-row">${escapeHtml(visiblePorkNote)}</p>
+      <p class="note-row">${escapeHtml(porkNote)}</p>
       ${place.personalNotes ? `<p class="note-row"><strong>Your notes:</strong> ${escapeHtml(place.personalNotes)}</p>` : ""}
       <div class="card-actions">
-        <button class="card-button" type="button" data-edit-place="${escapeHtml(place.id)}">
-          Edit fields
-        </button>
+        <button class="card-button" type="button" data-edit-place="${escapeHtml(place.id)}">Edit fields</button>
         ${place.sourceUrl ? `<a class="card-button link" href="${escapeAttribute(place.sourceUrl)}" target="_blank" rel="noreferrer">Source</a>` : ""}
       </div>
     </article>
@@ -564,7 +755,7 @@ function openEditor(placeId) {
   const place = getPlaceView(getPlaceById(placeId));
   state.editingPlaceId = placeId;
   elements.modalTitle.textContent = place.name;
-  elements.modalMeta.textContent = `${place.city} · ${place.area} · Default status: ${place.status}`;
+  elements.modalMeta.textContent = `${place.cityGroup} · ${place.neighborhood} · Default status: ${place.status}`;
   elements.editStatus.value = place.edits.status || place.effectiveStatus || "Not Yet";
   elements.editVisited.checked = place.visited;
   elements.editRating.value = place.myRating;
@@ -606,13 +797,15 @@ function resetPlaceEdits() {
 
 function exportEditsCsv() {
   const rows = [
-    ["ID", "Name", "City", "Status", "Visited", "My Rating", "Review", "Would Return", "Notes"],
+    ["ID", "Name", "City", "Neighborhood", "Status", "Visited", "My Rating", "Review", "Would Return", "Notes"],
   ];
+
   getAllPlaces().forEach((place) => {
     rows.push([
       place.id,
       place.name,
-      place.city,
+      place.cityGroup,
+      place.neighborhood,
       place.effectiveStatus,
       String(place.visited),
       place.myRating,
@@ -623,12 +816,9 @@ function exportEditsCsv() {
   });
 
   const csv = rows
-    .map((row) =>
-      row
-        .map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`)
-        .join(",")
-    )
+    .map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(","))
     .join("\n");
+
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -653,16 +843,8 @@ function resetFilters() {
     porkSafeOnly: false,
     classPassOnly: false,
   };
-  adjustMapCityForFilter();
+  populateFilterOptions();
   renderAll();
-}
-
-function adjustMapCityForFilter() {
-  if (state.filters.city === "Singapore") {
-    state.mapCity = "Singapore";
-  } else if (state.filters.city === "Bangkok") {
-    state.mapCity = "Bangkok";
-  }
 }
 
 function populateStatusSelect(select, options) {
@@ -672,24 +854,51 @@ function populateStatusSelect(select, options) {
 }
 
 function populateFilterOptions() {
-  const places = getAllPlaces();
-  const definitions = {
-    city: ["All", ...uniqueValues(places, (place) => [place.city, place.cityGroup])],
-    area: ["All", ...uniqueValues(places, (place) => [place.area])],
-    category: ["All", ...uniqueValues(places, (place) => [place.category])],
-    mood: ["All", ...uniqueValues(places, (place) => [place.mood])],
-    price: ["All", ...uniqueValues(places, (place) => [place.price])],
-    priority: ["All", ...uniqueValues(places, (place) => [place.priority])],
-    status: ["All", ...statusChoices],
-  };
+  const allPlaces = getAllPlaces();
+  const scopedPlaces =
+    state.filters.city === "Bangkok" || state.filters.city === "Singapore"
+      ? allPlaces.filter((place) => place.cityGroup === state.filters.city)
+      : allPlaces;
 
-  Object.entries(definitions).forEach(([key, options]) => {
-    const select = elements.filters[key];
-    select.innerHTML = options
-      .filter(Boolean)
-      .map((option) => `<option value="${escapeAttribute(option)}">${escapeHtml(option)}</option>`)
-      .join("");
-  });
+  setSelectOptions(elements.filters.city, ["All", "Bangkok", "Singapore"], state.filters.city);
+  setSelectOptions(
+    elements.filters.area,
+    ["All", ...uniqueValues(scopedPlaces, (place) => place.neighborhood)],
+    state.filters.area
+  );
+  setSelectOptions(
+    elements.filters.category,
+    ["All", ...uniqueValues(allPlaces, (place) => place.filterCategory)],
+    state.filters.category
+  );
+  setSelectOptions(
+    elements.filters.mood,
+    ["All", ...uniqueValues(allPlaces, (place) => place.mood)],
+    state.filters.mood
+  );
+  setSelectOptions(
+    elements.filters.price,
+    ["All", ...uniqueValues(allPlaces, (place) => place.price)],
+    state.filters.price
+  );
+  setSelectOptions(
+    elements.filters.priority,
+    ["All", ...uniqueValues(allPlaces, (place) => place.priority)],
+    state.filters.priority
+  );
+  setSelectOptions(elements.filters.status, ["All", ...statusChoices], state.filters.status);
+
+  if (![...elements.filters.area.options].some((option) => option.value === state.filters.area)) {
+    state.filters.area = "All";
+  }
+}
+
+function setSelectOptions(select, options, selectedValue) {
+  const current = options.includes(selectedValue) ? selectedValue : "All";
+  select.innerHTML = options
+    .map((option) => `<option value="${escapeAttribute(option)}">${escapeHtml(option)}</option>`)
+    .join("");
+  select.value = current;
 }
 
 function syncFilterControls() {
@@ -705,8 +914,12 @@ function syncFilterControls() {
   elements.filters.classPassOnly.checked = state.filters.classPassOnly;
 }
 
+function uniqueValues(items, getter) {
+  return [...new Set(items.map(getter).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
 function renderStatusPill(status) {
-  const className = `status-pill ${`status-${status.toLowerCase().replaceAll(" ", "-")}`}`;
+  const className = `status-pill status-${status.toLowerCase().replaceAll(" ", "-")}`;
   return `<span class="${className}">${escapeHtml(status)}</span>`;
 }
 
@@ -718,16 +931,6 @@ function getPinClass(place) {
     return "pin-planned";
   }
   return "pin-normal";
-}
-
-function uniqueValues(items, mapper) {
-  const values = new Set();
-  items.forEach((item) => {
-    mapper(item)
-      .filter(Boolean)
-      .forEach((value) => values.add(value));
-  });
-  return [...values].sort((a, b) => a.localeCompare(b));
 }
 
 function clamp(value, min, max) {
