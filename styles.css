@@ -1,20 +1,21 @@
 :root {
-  --bg: #f4efe7;
-  --panel: rgba(255, 252, 247, 0.86);
-  --panel-strong: rgba(255, 250, 244, 0.96);
+  --panel: rgba(255, 252, 247, 0.88);
+  --panel-strong: rgba(255, 250, 244, 0.97);
   --line: rgba(104, 86, 71, 0.12);
   --line-strong: rgba(104, 86, 71, 0.22);
   --text: #2d2823;
-  --muted: #796b5d;
-  --accent: #96694f;
-  --accent-deep: #5d4335;
-  --accent-soft: #dcc3af;
-  --night: #7b5f7f;
-  --danger: #a55a4a;
-  --success: #6f8967;
-  --map-water: #ddd6cb;
-  --map-land: #f8f3ec;
-  --map-road: rgba(121, 107, 93, 0.24);
+  --muted: #786b5e;
+  --accent: #936649;
+  --accent-deep: #5e4335;
+  --accent-soft: #e7d3c3;
+  --night: #785d80;
+  --danger: #aa5e50;
+  --success: #6c8665;
+  --atlas-land: #f7f1e7;
+  --atlas-water: #d6ddd9;
+  --atlas-region: rgba(145, 117, 96, 0.09);
+  --atlas-region-active: rgba(145, 117, 96, 0.18);
+  --atlas-road: rgba(116, 99, 84, 0.22);
   --shadow: 0 22px 50px rgba(63, 42, 19, 0.08);
   --radius-xl: 30px;
   --radius-lg: 22px;
@@ -38,8 +39,8 @@ body {
   color: var(--text);
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.78), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(219, 193, 170, 0.45), transparent 35%),
-    linear-gradient(180deg, #f8f3ed 0%, #f2ece4 50%, #ece5db 100%);
+    radial-gradient(circle at bottom right, rgba(219, 193, 170, 0.42), transparent 35%),
+    linear-gradient(180deg, #f8f3ed 0%, #f2ece4 52%, #ece5db 100%);
 }
 
 body::before {
@@ -55,20 +56,19 @@ body::before {
 }
 
 .page-shell {
-  width: min(1400px, calc(100% - 32px));
+  width: min(1440px, calc(100% - 32px));
   margin: 0 auto;
   padding: 28px 0 80px;
 }
 
 .hero,
+.schedule-card,
+.explorer-shell,
 .filters-card,
 .map-card,
-.spotlight-card,
-.timeline-card,
-.planner-card,
+.inspector-card,
 .section-card,
-.panel-card,
-.explorer-shell {
+.hero-note-card {
   backdrop-filter: blur(16px);
   background: var(--panel);
   border: 1px solid var(--line);
@@ -77,7 +77,7 @@ body::before {
 
 .hero {
   display: grid;
-  grid-template-columns: 1.45fr 0.7fr;
+  grid-template-columns: 1.45fr 0.72fr;
   gap: 24px;
   padding: 28px;
   border-radius: var(--radius-xl);
@@ -86,29 +86,32 @@ body::before {
 .hero-copy h1 {
   margin: 10px 0 12px;
   font-family: var(--serif);
-  font-size: clamp(2.5rem, 5vw, 4.8rem);
+  font-size: clamp(2.6rem, 5vw, 4.9rem);
   line-height: 0.94;
   letter-spacing: -0.03em;
 }
 
 .hero-text,
 .section-note,
-.empty-state,
-.note-row,
 .card-notes,
-.panel-card p,
-.map-hint,
-.map-detail p {
+.note-row,
+.empty-state,
+.hero-note-card p,
+.schedule-help,
+.schedule-empty,
+.atlas-help {
   color: var(--muted);
 }
 
 .hero-text {
-  max-width: 58ch;
-  font-size: 1.03rem;
+  max-width: 60ch;
+  font-size: 1.04rem;
   line-height: 1.75;
 }
 
-.eyebrow {
+.eyebrow,
+.panel-label,
+.field-label {
   margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.18em;
@@ -121,10 +124,12 @@ body::before {
 .filter-toggles,
 .card-chips,
 .modal-actions,
-.planner-controls,
-.map-actions,
-.map-control-row,
-.planner-stage-meta {
+.schedule-nav,
+.schedule-tab-row,
+.atlas-list,
+.inspector-actions,
+.inspector-related,
+.map-neighborhoods {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -143,10 +148,10 @@ body::before {
 }
 
 .button:hover,
-.map-tab:hover,
-.pin-button:hover,
 .card-button:hover,
-.planner-pill:hover {
+.map-chip:hover,
+.schedule-tab:hover,
+.pin-button:hover {
   transform: translateY(-1px);
 }
 
@@ -156,62 +161,49 @@ body::before {
 }
 
 .button-secondary {
-  background: rgba(150, 105, 79, 0.14);
+  background: rgba(147, 102, 73, 0.14);
   color: var(--accent-deep);
 }
 
 .button-ghost {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.62);
   color: var(--text);
   border: 1px solid var(--line);
 }
 
-.panel-card {
+.hero-side {
+  display: grid;
+  gap: 16px;
+}
+
+.hero-note-card {
   border-radius: var(--radius-lg);
   padding: 22px;
 }
 
-.panel-card.emphasis {
-  background:
-    linear-gradient(140deg, rgba(231, 213, 198, 0.92), rgba(255, 252, 248, 0.98));
+.hero-note-card.soft {
+  background: linear-gradient(140deg, rgba(245, 239, 230, 0.95), rgba(255, 252, 248, 0.98));
 }
 
-.panel-label {
-  margin: 0 0 8px;
-  font-size: 0.78rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.panel-card h2 {
-  margin: 0 0 8px;
+.hero-note-card h2 {
+  margin: 8px 0 10px;
   font-family: var(--serif);
-  font-size: 1.8rem;
+  font-size: 1.7rem;
 }
 
-.hero-sidecard {
-  align-self: stretch;
-}
-
-.timeline-card,
-.planner-card,
-.section-card,
-.explorer-shell {
+.schedule-card,
+.explorer-shell,
+.section-card {
   margin-top: 22px;
   border-radius: var(--radius-xl);
   padding: 24px;
 }
 
-.filters-card {
-  margin-top: 18px;
-  border-radius: 24px;
-  padding: 22px;
-}
-
 .section-heading,
 .filters-header,
-.section-title-row {
+.section-title-row,
+.map-header,
+.schedule-day-header {
   display: flex;
   justify-content: space-between;
   gap: 18px;
@@ -220,10 +212,165 @@ body::before {
 
 .section-heading h2,
 .filters-header h2,
+.map-header h2,
 .section-card h2 {
   margin: 8px 0 0;
   font-family: var(--serif);
-  font-size: 1.85rem;
+  font-size: 1.9rem;
+}
+
+.schedule-tabs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 8px 2px 2px;
+  margin-top: 18px;
+}
+
+.schedule-tab {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.schedule-tab.active {
+  background: var(--accent-deep);
+  color: #fff7ef;
+  border-color: transparent;
+}
+
+.schedule-editor {
+  margin-top: 18px;
+}
+
+.schedule-day-card {
+  padding: 22px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid var(--line);
+}
+
+.schedule-day-card h3 {
+  margin: 6px 0 0;
+  font-family: var(--serif);
+  font-size: 2rem;
+}
+
+.schedule-date {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.schedule-help {
+  margin: 12px 0 0;
+  font-size: 0.95rem;
+}
+
+.schedule-items {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.schedule-item {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 252, 247, 0.72);
+  border: 1px solid var(--line);
+}
+
+.schedule-stamp {
+  font-weight: 700;
+  color: var(--accent-deep);
+}
+
+.schedule-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.schedule-fields label,
+.modal-form label,
+.filters-grid label {
+  display: grid;
+  gap: 8px;
+}
+
+.schedule-meta-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 12px;
+}
+
+.schedule-textarea,
+.schedule-input,
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--text);
+}
+
+.schedule-textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.schedule-textarea.notes {
+  min-height: 74px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid rgba(147, 102, 73, 0.18);
+  border-color: rgba(147, 102, 73, 0.42);
+}
+
+.schedule-summary {
+  margin-top: 18px;
+}
+
+.schedule-summary textarea {
+  min-height: 120px;
+}
+
+.schedule-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.schedule-empty {
+  padding: 28px;
+  border-radius: 22px;
+  border: 1px dashed var(--line-strong);
+  text-align: center;
+}
+
+.filters-card {
+  margin-top: 18px;
+  border-radius: 24px;
+  padding: 22px;
 }
 
 .filters-grid {
@@ -233,37 +380,12 @@ body::before {
   margin-top: 18px;
 }
 
-.filters-grid label,
-.modal-form label {
-  display: grid;
-  gap: 8px;
-}
-
 .filters-grid span,
 .modal-form span {
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--muted);
-}
-
-input,
-select,
-textarea {
-  width: 100%;
-  border: 1px solid var(--line-strong);
-  background: rgba(255, 255, 255, 0.78);
-  border-radius: 14px;
-  padding: 12px 14px;
-  font: inherit;
-  color: var(--text);
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  outline: 2px solid rgba(150, 105, 79, 0.2);
-  border-color: rgba(150, 105, 79, 0.4);
 }
 
 .toggle {
@@ -278,277 +400,154 @@ textarea:focus {
   margin: 0;
 }
 
-.planner-rail {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 10px;
-  overflow-x: auto;
-  padding: 6px 2px 2px;
-  margin-top: 18px;
-}
-
-.planner-pill {
-  appearance: none;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.68);
-  border-radius: 999px;
-  padding: 10px 14px;
-  font: inherit;
-  color: var(--text);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.planner-pill.active {
-  background: var(--accent-deep);
-  color: #fff7ef;
-  border-color: transparent;
-}
-
-.planner-stage {
-  margin-top: 18px;
-  padding: 22px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.58);
-  border: 1px solid var(--line);
-}
-
-.planner-stage h3 {
-  margin: 8px 0 0;
-  font-family: var(--serif);
-  font-size: 2rem;
-}
-
-.planner-date {
-  color: var(--muted);
-  font-size: 0.88rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.planner-stage-grid {
+.atlas-layout {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 18px;
-}
-
-.planner-slot {
-  padding: 16px;
-  border-radius: 18px;
-  background: rgba(255, 252, 247, 0.72);
-  border: 1px solid var(--line);
-}
-
-.planner-slot strong {
-  display: block;
-  margin-bottom: 6px;
-}
-
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 1.3fr 0.7fr;
+  grid-template-columns: 1.15fr 0.85fr;
   gap: 22px;
   margin-top: 22px;
 }
 
 .map-card,
-.spotlight-card {
+.inspector-card {
   border-radius: var(--radius-xl);
   padding: 24px;
 }
 
-.map-actions {
-  justify-content: flex-end;
+.map-neighborhoods {
+  margin-top: 16px;
 }
 
-.map-canvas-shell {
-  display: grid;
-  gap: 14px;
-  margin-top: 18px;
-}
-
-.map-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  color: var(--muted);
-  font-size: 0.92rem;
-}
-
-.legend-dot {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  margin-right: 6px;
-}
-
-.priority-legend {
-  background: var(--accent);
-}
-
-.nightlife-legend {
-  background: var(--night);
-}
-
-.caution-legend {
-  background: var(--danger);
-}
-
-.map-tab {
+.map-chip {
   appearance: none;
-  border: 1px solid var(--line-strong);
-  background: rgba(255, 255, 255, 0.6);
-  color: var(--text);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.74);
   border-radius: 999px;
-  padding: 10px 14px;
+  padding: 10px 12px;
   font: inherit;
-  font-weight: 600;
+  color: var(--text);
   cursor: pointer;
 }
 
-.map-tab.active {
+.map-chip.active {
   background: var(--accent-deep);
   color: #fff8f2;
+  border-color: transparent;
 }
 
-.map-canvas {
+.atlas-canvas {
+  margin-top: 18px;
+}
+
+.atlas-shell {
+  position: relative;
   border-radius: 26px;
-  border: 1px solid rgba(104, 86, 71, 0.14);
-  background: linear-gradient(180deg, rgba(255, 251, 246, 0.94), rgba(246, 239, 230, 0.94));
   overflow: hidden;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 251, 246, 0.96), rgba(245, 239, 231, 0.94));
 }
 
-.map-hud {
+.atlas-help {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 252, 247, 0.92);
-}
-
-.map-hint {
-  margin: 0;
+  background: rgba(255, 252, 247, 0.94);
   font-size: 0.92rem;
 }
 
-.map-viewport {
+.atlas-map {
   position: relative;
-  height: 520px;
-  overflow: hidden;
-  cursor: grab;
-  background:
-    radial-gradient(circle at 14% 18%, rgba(255, 255, 255, 0.86), transparent 18%),
-    linear-gradient(180deg, #f3ede5, #ede5da);
+  height: 580px;
 }
 
-.map-viewport.is-dragging {
-  cursor: grabbing;
-}
-
-.map-layer {
-  position: absolute;
-  inset: 0;
-  width: 1000px;
-  height: 700px;
-  left: 50%;
-  top: 50%;
-  margin-left: -500px;
-  margin-top: -350px;
-  transform-origin: center center;
-  will-change: transform;
-}
-
-.map-background {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.map-background svg {
+.atlas-svg {
   width: 100%;
   height: 100%;
   display: block;
 }
 
-.map-region {
-  fill: rgba(170, 146, 122, 0.08);
-  stroke: rgba(140, 120, 101, 0.18);
+.atlas-region {
+  fill: var(--atlas-region);
+  stroke: rgba(136, 114, 95, 0.18);
   stroke-width: 2;
+  cursor: pointer;
 }
 
-.map-region-soft {
-  fill: rgba(170, 146, 122, 0.05);
-  stroke: rgba(140, 120, 101, 0.12);
-  stroke-width: 1.5;
+.atlas-region:hover {
+  fill: rgba(145, 117, 96, 0.14);
 }
 
-.map-road-major {
-  stroke: rgba(121, 107, 93, 0.34);
-  stroke-width: 12;
-  fill: none;
-  stroke-linecap: round;
+.atlas-region.active {
+  fill: var(--atlas-region-active);
+  stroke: rgba(112, 92, 76, 0.34);
 }
 
-.map-road-minor {
-  stroke: rgba(121, 107, 93, 0.18);
-  stroke-width: 6;
-  fill: none;
-  stroke-linecap: round;
-}
-
-.map-water {
-  fill: rgba(194, 201, 204, 0.52);
-  stroke: rgba(171, 180, 184, 0.42);
-  stroke-width: 1.5;
-}
-
-.map-park {
-  fill: rgba(169, 187, 164, 0.22);
-  stroke: rgba(141, 158, 138, 0.22);
-  stroke-width: 1.5;
-}
-
-.map-water-label,
-.map-road-label {
-  fill: rgba(108, 96, 85, 0.78);
+.atlas-region-label,
+.atlas-water-label,
+.atlas-road-label {
+  fill: rgba(96, 82, 70, 0.9);
   font-family: var(--sans);
-  font-size: 20px;
+}
+
+.atlas-region-label {
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.atlas-water-label {
+  font-size: 16px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.map-road-label {
-  font-size: 16px;
-  letter-spacing: 0.08em;
+.atlas-road-label {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-.map-label {
+.atlas-road-major {
+  stroke: var(--atlas-road);
+  stroke-width: 14;
+  fill: none;
+  stroke-linecap: round;
+}
+
+.atlas-road-minor {
+  stroke: rgba(116, 99, 84, 0.14);
+  stroke-width: 7;
+  fill: none;
+  stroke-linecap: round;
+}
+
+.atlas-water {
+  fill: var(--atlas-water);
+  stroke: rgba(169, 176, 173, 0.42);
+  stroke-width: 1.5;
+}
+
+.atlas-park {
+  fill: rgba(171, 186, 166, 0.22);
+  stroke: rgba(141, 156, 138, 0.26);
+  stroke-width: 1.5;
+}
+
+.atlas-pins {
   position: absolute;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(255, 252, 248, 0.9);
-  color: var(--muted);
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  border: 1px solid rgba(121, 107, 93, 0.15);
-  transform: translate(-50%, -50%);
-  white-space: nowrap;
+  inset: 0;
 }
 
 .pin-button {
   position: absolute;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border: 0;
   border-radius: 999px;
   cursor: pointer;
-  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.28);
   transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.3);
 }
 
 .pin-button::after {
@@ -556,11 +555,11 @@ textarea:focus {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 999px;
   transform: translate(-50%, -50%);
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.22);
 }
 
 .pin-normal {
@@ -576,95 +575,42 @@ textarea:focus {
 }
 
 .pin-button.active {
-  box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.32);
+  box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.36);
 }
 
-.map-detail {
-  padding: 18px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1px solid var(--line);
+.inspector-card {
+  background: var(--panel-strong);
 }
 
-.map-neighborhoods {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.map-neighborhood-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.66);
-  border: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.map-neighborhood-chip strong {
-  color: var(--text);
-}
-
-.map-detail h3,
-.spotlight-item h3,
-.timeline-item h3,
+.inspector-card h3,
 .card-title,
 .section-card h2 {
   margin: 0;
   font-family: var(--serif);
 }
 
-.map-detail h3 {
-  font-size: 1.6rem;
+.inspector-card h3 {
+  font-size: 2rem;
 }
 
-.map-detail-actions,
-.card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.inspector-related {
+  margin-top: 16px;
 }
 
-.spotlight-stack,
+.inspector-related button {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  padding: 10px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
 .section-stack {
   display: grid;
   gap: 18px;
-}
-
-.spotlight-item {
-  padding: 18px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.58);
-  border: 1px solid var(--line);
-}
-
-.spotlight-item h3 {
-  font-size: 1.45rem;
-}
-
-.timeline-grid {
-  display: grid;
-  gap: 12px;
-  margin-top: 18px;
-}
-
-.timeline-item {
-  display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 18px;
-  padding: 18px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.56);
-  border: 1px solid var(--line);
-}
-
-.timeline-time {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--accent-deep);
+  margin-top: 22px;
 }
 
 .section-card {
@@ -681,7 +627,7 @@ textarea:focus {
 .card {
   padding: 18px;
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.6);
   border: 1px solid var(--line);
   display: grid;
   gap: 12px;
@@ -695,7 +641,7 @@ textarea:focus {
 }
 
 .card-title {
-  font-size: 1.28rem;
+  font-size: 1.24rem;
   line-height: 1.1;
 }
 
@@ -720,58 +666,58 @@ textarea:focus {
 
 .status-not-yet,
 .status-maybe {
-  background: rgba(220, 195, 175, 0.36);
+  background: rgba(231, 211, 195, 0.46);
   color: var(--accent-deep);
 }
 
 .status-planned-night {
-  background: rgba(123, 95, 127, 0.16);
-  color: #5a3e60;
+  background: rgba(120, 93, 128, 0.16);
+  color: #5f4664;
 }
 
 .status-visited {
-  background: rgba(111, 137, 103, 0.16);
-  color: #4f6948;
+  background: rgba(108, 134, 101, 0.16);
+  color: #4e6748;
 }
 
 .status-closed,
 .status-cut {
-  background: rgba(165, 90, 74, 0.14);
-  color: #8a4738;
+  background: rgba(170, 94, 80, 0.15);
+  color: #8c4b3e;
 }
 
 .chip {
-  background: rgba(255, 255, 255, 0.76);
+  background: rgba(255, 255, 255, 0.78);
   border: 1px solid rgba(104, 86, 71, 0.09);
   color: var(--muted);
 }
 
 .chip.priority {
-  background: rgba(150, 105, 79, 0.12);
+  background: rgba(147, 102, 73, 0.13);
   color: var(--accent-deep);
 }
 
 .chip.pork-caution {
-  background: rgba(189, 125, 73, 0.14);
-  color: #7c552b;
+  background: rgba(190, 128, 76, 0.14);
+  color: #7c562f;
 }
 
 .chip.classpass {
-  background: rgba(111, 137, 103, 0.14);
-  color: #4f6948;
+  background: rgba(108, 134, 101, 0.14);
+  color: #4e6748;
 }
 
 .card-meta {
   display: grid;
   gap: 8px;
   color: var(--muted);
-  font-size: 0.96rem;
+  font-size: 0.95rem;
 }
 
 .card-button {
   appearance: none;
   border: 0;
-  background: rgba(150, 105, 79, 0.12);
+  background: rgba(147, 102, 73, 0.12);
   color: var(--accent-deep);
   border-radius: 999px;
   padding: 10px 14px;
@@ -795,7 +741,7 @@ textarea:focus {
 }
 
 .count-pill {
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.74);
   border: 1px solid var(--line);
   color: var(--muted);
 }
@@ -838,7 +784,7 @@ textarea:focus {
   height: 38px;
   border: 0;
   border-radius: 999px;
-  background: rgba(150, 105, 79, 0.12);
+  background: rgba(147, 102, 73, 0.12);
   color: var(--accent-deep);
   font-size: 1.5rem;
   cursor: pointer;
@@ -863,51 +809,54 @@ textarea:focus {
 
 @media (max-width: 1180px) {
   .hero,
-  .dashboard-grid,
-  .planner-stage-grid,
+  .atlas-layout,
   .section-grid,
-  .filters-grid {
+  .filters-grid,
+  .schedule-item,
+  .schedule-meta-row {
     grid-template-columns: 1fr;
+  }
+
+  .schedule-item {
+    display: grid;
   }
 }
 
 @media (max-width: 760px) {
   .page-shell {
-    width: min(100% - 20px, 1400px);
+    width: min(100% - 20px, 1440px);
     padding-top: 16px;
   }
 
   .hero,
+  .schedule-card,
+  .explorer-shell,
   .filters-card,
   .map-card,
-  .spotlight-card,
-  .timeline-card,
-  .planner-card,
+  .inspector-card,
   .section-card,
-  .explorer-shell,
+  .hero-note-card,
   .modal-card {
     padding: 18px;
     border-radius: 24px;
   }
 
-  .section-grid,
-  .filters-grid {
+  .filters-grid,
+  .section-grid {
     grid-template-columns: 1fr;
-  }
-
-  .timeline-item {
-    grid-template-columns: 1fr;
-    gap: 10px;
   }
 
   .section-heading,
   .filters-header,
   .section-title-row,
+  .map-header,
+  .schedule-day-header,
+  .schedule-footer,
   .card-header {
     flex-direction: column;
   }
 
-  .map-viewport {
-    height: 380px;
+  .atlas-map {
+    height: 460px;
   }
 }

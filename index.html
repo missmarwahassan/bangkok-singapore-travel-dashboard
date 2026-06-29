@@ -13,71 +13,62 @@
           <p class="eyebrow">Travel OS</p>
           <h1>Bangkok + Singapore</h1>
           <p class="hero-text">
-            A Notion-inspired dashboard for July 2026 with shopping-first Day 1
-            planning, no-pork visibility, nightlife priorities, and flexible
-            trip logging.
+            A clean trip workspace for your July 2026 plan, with an editable daily
+            schedule, no-pork notes, shopping-first arrival flow, and a more useful
+            city explorer.
           </p>
           <div class="hero-actions">
-            <a class="button button-primary" href="#day1-plan">Open Day 1</a>
+            <a class="button button-primary" href="#daily-schedule">Open Schedule</a>
+            <a class="button button-ghost" href="#city-explorer">Open City Explorer</a>
             <button class="button button-secondary" id="exportCsvButton" type="button">
               Export Trip Log CSV
             </button>
-            <a class="button button-ghost" href="./exports/trip_updates_template.csv" download>
-              Download Blank CSV
-            </a>
           </div>
         </div>
-        <aside class="panel-card emphasis hero-sidecard">
-          <p class="panel-label">July 9 Mood</p>
-          <h2>Arrival + Shopping</h2>
-          <p>
-            Land at 12:50 AM, sleep, then go straight into outfits,
-            skincare, and an easy Sukhumvit night.
-          </p>
+        <aside class="hero-side">
+          <article class="hero-note-card">
+            <p class="panel-label">Arrival Focus</p>
+            <h2>July 9 is for shopping first</h2>
+            <p>
+              You land at 12:50 AM, protect the morning, then use the first day to
+              lock in outfits, beauty, and one easy night out.
+            </p>
+          </article>
+          <article class="hero-note-card soft">
+            <p class="panel-label">Trip Rules</p>
+            <p>Tichuca stays planned. Tropic City is closed. Haawm is cut.</p>
+            <p>No-pork notes are surfaced throughout the dashboard.</p>
+          </article>
         </aside>
       </header>
 
-      <section class="timeline-card" id="day1-plan">
+      <section class="schedule-card" id="daily-schedule">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">Day 1 Shopping Plan</p>
-            <h2>Wednesday, July 9, 2026</h2>
+            <p class="eyebrow">Daily Schedule</p>
+            <h2>Editable itinerary by day</h2>
           </div>
-          <p class="section-note">
-            Built around a 12:50 AM arrival so clothes and beauty buys happen
-            before going out.
-          </p>
-        </div>
-        <div class="timeline-grid" id="day1Timeline"></div>
-      </section>
-
-      <section class="planner-card">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Trip Rhythm</p>
-            <h2>Daily planner</h2>
-          </div>
-          <div class="planner-controls">
-            <button class="button button-ghost" id="plannerPrevButton" type="button">
+          <div class="schedule-nav">
+            <button class="button button-ghost" id="schedulePrevButton" type="button">
               Previous Day
             </button>
-            <button class="button button-ghost" id="plannerNextButton" type="button">
+            <button class="button button-ghost" id="scheduleNextButton" type="button">
               Next Day
             </button>
           </div>
         </div>
-        <div class="planner-rail" id="plannerRail"></div>
-        <div class="planner-stage" id="plannerStage"></div>
+        <div class="schedule-tabs" id="scheduleTabs"></div>
+        <div class="schedule-editor" id="scheduleEditor"></div>
       </section>
 
-      <section class="explorer-shell">
+      <section class="explorer-shell" id="city-explorer">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">Explore Places</p>
-            <h2>Filter, map, and compare</h2>
+            <p class="eyebrow">City Explorer</p>
+            <h2>Filter places, inspect neighborhoods, choose what actually matters</h2>
           </div>
           <p class="section-note" id="resultsSummary">
-            Browse the shortlist by city, neighborhood, category, mood, and trip status.
+            Browse by city, neighborhood, category, mood, price, priority, and status.
           </p>
         </div>
 
@@ -85,7 +76,7 @@
           <div class="filters-header">
             <div>
               <p class="eyebrow">Filters</p>
-              <h2>Shape the dashboard</h2>
+              <h2>Keep the shortlist usable</h2>
             </div>
             <button class="button button-ghost" id="resetFiltersButton" type="button">
               Reset Filters
@@ -94,7 +85,7 @@
           <div class="filters-grid">
             <label>
               <span>Search</span>
-              <input id="searchFilter" type="search" placeholder="Tichuca, coffee, skincare..." />
+              <input id="searchFilter" type="search" placeholder="Tichuca, skincare, coffee..." />
             </label>
             <label>
               <span>City</span>
@@ -137,45 +128,21 @@
           </div>
         </section>
 
-        <section class="dashboard-grid">
+        <div class="atlas-layout">
           <article class="map-card">
-            <div class="section-heading">
+            <div class="map-header">
               <div>
-                <p class="eyebrow">Map View</p>
-                <h2>Zoom, pan, and inspect areas</h2>
+                <p class="eyebrow">Neighborhood Atlas</p>
+                <h2>Bangkok + Singapore at a glance</h2>
               </div>
-              <div class="map-actions">
-                <div class="chip-row" id="mapCityTabs"></div>
-                <div class="chip-row">
-                  <button class="map-tab" type="button" data-map-control="zoom-in">+</button>
-                  <button class="map-tab" type="button" data-map-control="zoom-out">−</button>
-                  <button class="map-tab" type="button" data-map-control="center">Center Pin</button>
-                  <button class="map-tab" type="button" data-map-control="reset">Reset</button>
-                </div>
-              </div>
+              <div class="chip-row" id="mapCityTabs"></div>
             </div>
-            <div class="map-canvas-shell">
-              <div class="map-legend">
-                <span><i class="legend-dot priority-legend"></i> Priority pins</span>
-                <span><i class="legend-dot nightlife-legend"></i> Planned night</span>
-                <span><i class="legend-dot caution-legend"></i> Closed / cut / caution</span>
-              </div>
-              <div class="map-canvas" id="mapCanvas"></div>
-              <div class="map-neighborhoods" id="mapNeighborhoods"></div>
-              <div class="map-detail" id="mapDetail"></div>
-            </div>
+            <div class="map-neighborhoods" id="mapNeighborhoods"></div>
+            <div class="atlas-canvas" id="mapCanvas"></div>
           </article>
 
-          <article class="spotlight-card">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">Spotlight</p>
-                <h2>High-intent picks</h2>
-              </div>
-            </div>
-            <div class="spotlight-stack" id="spotlightStack"></div>
-          </article>
-        </section>
+          <aside class="inspector-card" id="mapInspector"></aside>
+        </div>
 
         <section class="section-stack" id="sectionsRoot"></section>
       </section>

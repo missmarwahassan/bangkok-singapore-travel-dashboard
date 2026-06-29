@@ -1,6 +1,7 @@
 const data = window.TRIP_DATA;
 
-const storageKey = "bangkokSingaporeTripDashboardEdits";
+const tripLogStorageKey = "bangkokSingaporeTripDashboardEdits";
+const scheduleStorageKey = "bangkokSingaporeScheduleEdits";
 const statusChoices = ["Not Yet", "Planned Night", "Visited", "Maybe", "Closed", "Cut"];
 const priorityOrder = {
   Legendary: 0,
@@ -11,69 +12,92 @@ const priorityOrder = {
   Skip: 5,
 };
 const mapBounds = {
-  Bangkok: { latMin: 12.9, latMax: 13.82, lngMin: 100.45, lngMax: 100.8 },
-  Singapore: { latMin: 1.22, latMax: 1.38, lngMin: 103.78, lngMax: 103.97 },
-};
-const mapLabels = {
-  Bangkok: [
-    { label: "Song Wat", left: 19, top: 30 },
-    { label: "Old Town", left: 24, top: 45 },
-    { label: "Sathorn", left: 45, top: 52 },
-    { label: "Phrom Phong", left: 62, top: 43 },
-    { label: "Thong Lo", left: 74, top: 44 },
-    { label: "Ari", left: 57, top: 24 },
-  ],
-  Singapore: [
-    { label: "Orchard", left: 32, top: 48 },
-    { label: "City Hall", left: 50, top: 54 },
-    { label: "Kampong Glam", left: 60, top: 46 },
-    { label: "Chinatown", left: 39, top: 65 },
-    { label: "Joo Chiat", left: 78, top: 42 },
-  ],
-};
-const mapViews = {
-  Bangkok: { scale: 1.08, x: 0, y: 0 },
-  Singapore: { scale: 1.15, x: 0, y: 0 },
+  Bangkok: { latMin: 12.86, latMax: 13.84, lngMin: 100.44, lngMax: 100.82 },
+  Singapore: { latMin: 1.2, latMax: 1.4, lngMin: 103.74, lngMax: 104.02 },
 };
 const defaultResultsSummary =
-  "Browse the shortlist by city, neighborhood, category, mood, and trip status.";
+  "Browse by city, neighborhood, category, mood, price, priority, and status.";
 
-const state = {
-  filters: {
-    search: "",
-    city: "All",
-    area: "All",
-    category: "All",
-    mood: "All",
-    price: "All",
-    priority: "All",
-    status: "All",
-    porkSafeOnly: false,
-    classPassOnly: false,
+const neighborhoodAtlas = {
+  Bangkok: {
+    regions: [
+      { key: "Song Wat", label: "Song Wat", x: 250, y: 210, path: "M170 175 L310 158 L342 218 L286 270 L176 252 Z" },
+      { key: "Talat Noi", label: "Talat Noi", x: 205, y: 265, path: "M130 235 L240 220 L274 280 L210 330 L128 305 Z" },
+      { key: "Old Town / Chinatown", label: "Old Town", x: 250, y: 320, path: "M116 294 L286 272 L356 330 L280 430 L118 396 Z" },
+      { key: "Sathorn / Silom", label: "Sathorn", x: 432, y: 336, path: "M320 262 L510 256 L574 340 L488 430 L332 404 Z" },
+      { key: "Siam / Chit Lom", label: "Siam", x: 520, y: 232, path: "M432 174 L618 174 L662 248 L560 296 L434 266 Z" },
+      { key: "Ari / Phaya Thai", label: "Ari", x: 410, y: 168, path: "M296 108 L452 112 L510 176 L432 240 L312 208 Z" },
+      { key: "Asok", label: "Asok", x: 654, y: 266, path: "M592 202 L708 202 L744 274 L680 334 L592 310 Z" },
+      { key: "Phrom Phong", label: "Phrom Phong", x: 710, y: 226, path: "M664 158 L790 162 L832 228 L742 286 L656 248 Z" },
+      { key: "Thong Lo / Ekkamai", label: "Thong Lo", x: 824, y: 242, path: "M794 170 L932 186 L944 286 L846 334 L748 274 Z" },
+      { key: "Sukhumvit", label: "Sukhumvit", x: 678, y: 348, path: "M560 290 L750 296 L872 364 L814 470 L600 450 L520 370 Z" },
+      { key: "Bang Krachao", label: "Bang Krachao", x: 548, y: 518, path: "M430 448 L644 454 L704 568 L544 634 L396 560 Z" },
+      { key: "Koh Larn / Pattaya", label: "Beach Day", x: 136, y: 548, path: "M60 502 L188 488 L232 570 L138 628 L52 596 Z" },
+      { key: "Flexible Bangkok", label: "Flexible", x: 870, y: 470, path: "M808 344 L952 356 L976 520 L858 596 L752 480 Z" },
+    ],
+    water: "M54 34 C170 144 246 240 276 352 C300 442 292 546 268 640 C326 604 396 542 446 480 C500 408 526 314 518 214 C508 114 440 38 350 10 C254 -16 142 -8 54 34 Z",
+    roads: [
+      { className: "atlas-road-major", path: "M74 320 C224 284 320 288 438 326 C536 356 642 362 790 336 C876 320 924 322 972 336" },
+      { className: "atlas-road-major", path: "M274 144 C416 152 560 182 674 236 C768 280 860 346 948 432" },
+      { className: "atlas-road-minor", path: "M210 438 C346 394 486 392 634 426 C726 446 826 490 926 566" },
+      { className: "atlas-road-minor", path: "M134 224 C210 260 250 298 286 356 C308 390 324 432 332 500" },
+      { className: "atlas-road-minor", path: "M584 116 C654 168 696 224 736 302 C760 350 796 392 866 438" },
+    ],
+    parks: [
+      { path: "M424 478 C466 442 536 438 582 474 C562 544 494 578 434 560 C396 548 392 510 424 478 Z" },
+    ],
+    labels: [
+      { className: "atlas-water-label", x: 252, y: 366, rotate: -73, text: "Chao Phraya" },
+      { className: "atlas-road-label", x: 672, y: 222, rotate: 0, text: "Sukhumvit Corridor" },
+      { className: "atlas-road-label", x: 198, y: 354, rotate: 0, text: "Historic Core" },
+    ],
   },
-  edits: loadEdits(),
-  mapCity: "Bangkok",
-  activePlaceId: null,
-  editingPlaceId: null,
-  plannerIndex: 0,
-  draggingMap: null,
+  Singapore: {
+    regions: [
+      { key: "Orchard", label: "Orchard", x: 286, y: 246, path: "M152 186 L332 160 L404 244 L306 336 L160 294 Z" },
+      { key: "City Hall / Marina Bay", label: "City Hall", x: 496, y: 314, path: "M386 246 L566 230 L654 308 L564 402 L404 386 L348 312 Z" },
+      { key: "Kampong Glam / Bugis", label: "Bugis", x: 612, y: 246, path: "M536 172 L700 172 L770 242 L708 330 L574 308 L510 230 Z" },
+      { key: "Chinatown / CBD", label: "CBD", x: 414, y: 394, path: "M302 338 L472 324 L548 404 L480 490 L326 470 L270 396 Z" },
+      { key: "Dempsey", label: "Dempsey", x: 198, y: 326, path: "M118 268 L250 254 L302 326 L234 404 L126 384 Z" },
+      { key: "Tiong Bahru / River Valley", label: "Tiong Bahru", x: 280, y: 382, path: "M160 336 L308 322 L354 386 L290 456 L172 430 Z" },
+      { key: "Joo Chiat / East Coast", label: "East Coast", x: 786, y: 292, path: "M686 210 L892 220 L944 332 L834 420 L690 372 L648 270 Z" },
+      { key: "Sentosa", label: "Sentosa", x: 302, y: 520, path: "M212 468 L356 462 L404 536 L328 594 L214 568 Z" },
+      { key: "Little India / Dhoby Ghaut", label: "Little India", x: 492, y: 210, path: "M402 160 L542 150 L596 216 L536 282 L412 258 Z" },
+      { key: "Airport", label: "Airport", x: 930, y: 420, path: "M856 356 L980 376 L988 490 L896 530 L826 440 Z" },
+      { key: "Flexible Singapore", label: "Flexible", x: 716, y: 450, path: "M574 376 L770 388 L848 484 L734 592 L566 548 L520 446 Z" },
+    ],
+    water: "M0 430 C126 406 218 392 324 350 C440 306 604 262 722 220 C846 174 930 132 1000 98 L1000 700 L0 700 Z",
+    roads: [
+      { className: "atlas-road-major", path: "M126 294 C280 292 422 302 568 332 C700 362 824 356 958 308" },
+      { className: "atlas-road-major", path: "M172 172 C292 226 350 306 418 426 C466 510 562 576 680 582" },
+      { className: "atlas-road-minor", path: "M340 140 C422 212 514 252 634 276 C732 296 846 284 944 230" },
+      { className: "atlas-road-minor", path: "M248 470 C368 438 484 430 604 442 C720 454 818 494 918 578" },
+      { className: "atlas-road-minor", path: "M456 180 C474 244 490 304 526 356 C558 404 614 430 708 442" },
+    ],
+    parks: [
+      { path: "M670 458 C744 420 844 432 900 498 C860 566 756 600 688 572 C632 550 622 500 670 458 Z" },
+    ],
+    labels: [
+      { className: "atlas-water-label", x: 784, y: 488, rotate: 0, text: "Marina + Coast" },
+      { className: "atlas-road-label", x: 540, y: 322, rotate: 0, text: "City Core" },
+      { className: "atlas-road-label", x: 236, y: 274, rotate: 0, text: "Orchard Axis" },
+    ],
+  },
 };
 
 const elements = {
-  day1Timeline: document.getElementById("day1Timeline"),
-  plannerRail: document.getElementById("plannerRail"),
-  plannerStage: document.getElementById("plannerStage"),
-  plannerPrevButton: document.getElementById("plannerPrevButton"),
-  plannerNextButton: document.getElementById("plannerNextButton"),
-  resultsSummary: document.getElementById("resultsSummary"),
-  spotlightStack: document.getElementById("spotlightStack"),
-  sectionsRoot: document.getElementById("sectionsRoot"),
-  mapCityTabs: document.getElementById("mapCityTabs"),
-  mapCanvas: document.getElementById("mapCanvas"),
-  mapNeighborhoods: document.getElementById("mapNeighborhoods"),
-  mapDetail: document.getElementById("mapDetail"),
   exportCsvButton: document.getElementById("exportCsvButton"),
+  schedulePrevButton: document.getElementById("schedulePrevButton"),
+  scheduleNextButton: document.getElementById("scheduleNextButton"),
+  scheduleTabs: document.getElementById("scheduleTabs"),
+  scheduleEditor: document.getElementById("scheduleEditor"),
+  resultsSummary: document.getElementById("resultsSummary"),
   resetFiltersButton: document.getElementById("resetFiltersButton"),
+  mapCityTabs: document.getElementById("mapCityTabs"),
+  mapNeighborhoods: document.getElementById("mapNeighborhoods"),
+  mapCanvas: document.getElementById("mapCanvas"),
+  mapInspector: document.getElementById("mapInspector"),
+  sectionsRoot: document.getElementById("sectionsRoot"),
   editorModal: document.getElementById("editorModal"),
   closeModalButton: document.getElementById("closeModalButton"),
   modalTitle: document.getElementById("modalTitle"),
@@ -100,6 +124,29 @@ const elements = {
   },
 };
 
+const state = {
+  filters: {
+    search: "",
+    city: "All",
+    area: "All",
+    category: "All",
+    mood: "All",
+    price: "All",
+    priority: "All",
+    status: "All",
+    porkSafeOnly: false,
+    classPassOnly: false,
+  },
+  tripLogEdits: loadStorage(tripLogStorageKey),
+  scheduleEdits: loadStorage(scheduleStorageKey),
+  mapCity: "Bangkok",
+  activePlaceId: null,
+  editingPlaceId: null,
+  selectedScheduleKey: "2026-07-09",
+};
+
+const baseSchedules = buildSchedules();
+
 init();
 
 function init() {
@@ -114,31 +161,27 @@ function bindEvents() {
     const eventName = control.type === "checkbox" ? "change" : "input";
     control.addEventListener(eventName, () => {
       state.filters[key] = control.type === "checkbox" ? control.checked : control.value;
-      if (key === "city") {
-        if (state.filters.city === "Bangkok" || state.filters.city === "Singapore") {
-          state.mapCity = state.filters.city;
-        }
-        populateFilterOptions();
+      if (key === "city" && (state.filters.city === "Bangkok" || state.filters.city === "Singapore")) {
+        state.mapCity = state.filters.city;
       }
+      populateFilterOptions();
       renderAll();
     });
   });
 
   elements.exportCsvButton.addEventListener("click", exportEditsCsv);
+  elements.schedulePrevButton.addEventListener("click", () => shiftSchedule(-1));
+  elements.scheduleNextButton.addEventListener("click", () => shiftSchedule(1));
   elements.resetFiltersButton.addEventListener("click", resetFilters);
   elements.closeModalButton.addEventListener("click", closeModal);
   elements.editorModal.addEventListener("click", (event) => {
-    if (event.target.dataset.closeModal === "true") {
-      closeModal();
-    }
+    if (event.target.dataset.closeModal === "true") closeModal();
   });
   elements.editorForm.addEventListener("submit", (event) => {
     event.preventDefault();
     savePlaceEdits();
   });
   elements.resetPlaceButton.addEventListener("click", resetPlaceEdits);
-  elements.plannerPrevButton.addEventListener("click", () => shiftPlanner(-1));
-  elements.plannerNextButton.addEventListener("click", () => shiftPlanner(1));
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !elements.editorModal.classList.contains("hidden")) {
@@ -147,52 +190,166 @@ function bindEvents() {
   });
 
   document.addEventListener("click", (event) => {
-    const editTrigger = event.target.closest("[data-edit-place]");
-    if (editTrigger) {
-      openEditor(editTrigger.dataset.editPlace);
+    const scheduleTab = event.target.closest("[data-schedule-key]");
+    if (scheduleTab) {
+      state.selectedScheduleKey = scheduleTab.dataset.scheduleKey;
+      renderScheduleWorkspace();
       return;
     }
 
-    const plannerTrigger = event.target.closest("[data-planner-index]");
-    if (plannerTrigger) {
-      state.plannerIndex = Number(plannerTrigger.dataset.plannerIndex);
-      renderPlanner();
+    const scheduleReset = event.target.closest("[data-reset-schedule]");
+    if (scheduleReset) {
+      delete state.scheduleEdits[state.selectedScheduleKey];
+      persistStorage(scheduleStorageKey, state.scheduleEdits);
+      renderScheduleWorkspace();
       return;
     }
 
-    const cityTrigger = event.target.closest("[data-map-city]");
-    if (cityTrigger) {
-      state.mapCity = cityTrigger.dataset.mapCity;
-      state.activePlaceId = null;
-      renderMapTabs(getFilteredPlaces());
-      renderMap(getFilteredPlaces());
+    const cityTab = event.target.closest("[data-map-city]");
+    if (cityTab) {
+      state.mapCity = cityTab.dataset.mapCity;
+      renderMapExplorer(getFilteredPlaces());
       return;
     }
 
-    const placeTrigger = event.target.closest("[data-map-place]");
-    if (placeTrigger) {
-      state.activePlaceId = placeTrigger.dataset.mapPlace;
-      renderMap(getFilteredPlaces());
+    const regionTrigger = event.target.closest("[data-map-region]");
+    if (regionTrigger) {
+      const nextNeighborhood = regionTrigger.dataset.mapRegion;
+      state.filters.city = state.mapCity;
+      state.filters.area = state.filters.area === nextNeighborhood ? "All" : nextNeighborhood;
+      populateFilterOptions();
+      renderAll();
       return;
     }
 
-    const mapControl = event.target.closest("[data-map-control]");
-    if (mapControl) {
-      adjustMapView(mapControl.dataset.mapControl);
+    const neighborhoodChip = event.target.closest("[data-neighborhood-filter]");
+    if (neighborhoodChip) {
+      const nextNeighborhood = neighborhoodChip.dataset.neighborhoodFilter;
+      state.filters.city = state.mapCity;
+      state.filters.area = nextNeighborhood;
+      populateFilterOptions();
+      renderAll();
+      return;
     }
+
+    const mapPlace = event.target.closest("[data-map-place]");
+    if (mapPlace) {
+      state.activePlaceId = mapPlace.dataset.mapPlace;
+      renderMapExplorer(getFilteredPlaces());
+      return;
+    }
+
+    const selectPlace = event.target.closest("[data-select-place]");
+    if (selectPlace) {
+      state.activePlaceId = selectPlace.dataset.selectPlace;
+      renderMapExplorer(getFilteredPlaces());
+      return;
+    }
+
+    const editPlace = event.target.closest("[data-edit-place]");
+    if (editPlace) {
+      openEditor(editPlace.dataset.editPlace);
+    }
+  });
+
+  document.addEventListener("input", (event) => {
+    const field = event.target.closest("[data-schedule-field]");
+    if (!field) return;
+    updateScheduleField(
+      field.dataset.scheduleKey,
+      Number(field.dataset.itemIndex),
+      field.dataset.scheduleField,
+      field.value
+    );
   });
 }
 
-function loadEdits() {
-  try {
-    return JSON.parse(localStorage.getItem(storageKey) || "{}");
-  } catch {
-    return {};
+function buildSchedules() {
+  const dailySchedules = data.dailyPlanner.map((entry) => {
+    const key = String(entry.Date);
+    const items = [
+      { stamp: "Morning", content: entry.Morning, meta: entry.City, notes: "" },
+      { stamp: "Workout", content: entry.Workout, meta: entry.Mood, notes: "" },
+      { stamp: "Lunch", content: entry.Lunch, meta: "", notes: "" },
+      { stamp: "Afternoon", content: entry.Afternoon, meta: "", notes: "" },
+      { stamp: "Dinner", content: entry.Dinner, meta: "", notes: "" },
+      { stamp: "Night", content: entry.Night, meta: "", notes: "" },
+      { stamp: "Reservations", content: entry["Reservation Needed"], meta: "", notes: "" },
+    ];
+    return {
+      key,
+      dateLabel: key,
+      city: entry.City,
+      mood: entry.Mood,
+      summary: entry.Notes || "",
+      items,
+    };
+  });
+
+  const dayOne = dailySchedules.find((schedule) => schedule.key === "2026-07-09");
+  if (dayOne) {
+    dayOne.items = data.day1.map((item) => ({
+      stamp: item.Time,
+      content: item.Plan,
+      meta: `${item.Area} · ${item.Mood}`,
+      notes: item.Notes,
+    }));
   }
+
+  return dailySchedules;
 }
 
-function saveEdits() {
-  localStorage.setItem(storageKey, JSON.stringify(state.edits));
+function getSchedules() {
+  return baseSchedules.map((schedule) => getScheduleView(schedule));
+}
+
+function getScheduleView(schedule) {
+  const edited = state.scheduleEdits[schedule.key];
+  if (!edited) return cloneSchedule(schedule);
+  return {
+    key: schedule.key,
+    dateLabel: edited.dateLabel || schedule.dateLabel,
+    city: edited.city || schedule.city,
+    mood: edited.mood || schedule.mood,
+    summary: edited.summary ?? schedule.summary,
+    items: (edited.items || schedule.items).map((item, index) => ({
+      stamp: item.stamp ?? schedule.items[index]?.stamp ?? "",
+      content: item.content ?? "",
+      meta: item.meta ?? "",
+      notes: item.notes ?? "",
+    })),
+  };
+}
+
+function cloneSchedule(schedule) {
+  return {
+    key: schedule.key,
+    dateLabel: schedule.dateLabel,
+    city: schedule.city,
+    mood: schedule.mood,
+    summary: schedule.summary,
+    items: schedule.items.map((item) => ({ ...item })),
+  };
+}
+
+function updateScheduleField(scheduleKey, index, field, value) {
+  const current = getScheduleView(baseSchedules.find((item) => item.key === scheduleKey));
+  const next = cloneSchedule(current);
+  if (field === "summary") {
+    next.summary = value;
+  } else if (next.items[index]) {
+    next.items[index][field] = value;
+  }
+  state.scheduleEdits[scheduleKey] = next;
+  persistStorage(scheduleStorageKey, state.scheduleEdits);
+}
+
+function shiftSchedule(delta) {
+  const schedules = getSchedules();
+  const currentIndex = schedules.findIndex((schedule) => schedule.key === state.selectedScheduleKey);
+  const nextIndex = (currentIndex + delta + schedules.length) % schedules.length;
+  state.selectedScheduleKey = schedules[nextIndex].key;
+  renderScheduleWorkspace();
 }
 
 function getPlaceById(id) {
@@ -200,20 +357,16 @@ function getPlaceById(id) {
 }
 
 function getPlaceView(place) {
-  const edits = state.edits[place.id] || {};
+  const edits = state.tripLogEdits[place.id] || {};
   const visited = edits.visited ?? place.defaults?.visited ?? false;
   const baseStatus = edits.status || place.status;
-  const effectiveStatus =
-    visited && !["Closed", "Cut"].includes(baseStatus) ? "Visited" : baseStatus;
-  const neighborhood = deriveNeighborhood(place);
-  const filterCategory = deriveCategory(place);
   return {
     ...place,
+    neighborhood: deriveNeighborhood(place),
+    filterCategory: deriveCategory(place),
     edits,
     visited,
-    effectiveStatus,
-    neighborhood,
-    filterCategory,
+    effectiveStatus: visited && !["Closed", "Cut"].includes(baseStatus) ? "Visited" : baseStatus,
     myRating: edits.myRating ?? place.defaults?.myRating ?? "",
     review: edits.review ?? place.defaults?.review ?? "",
     wouldReturn: edits.wouldReturn ?? place.defaults?.wouldReturn ?? "",
@@ -348,120 +501,96 @@ function sortPlaces(a, b) {
 }
 
 function renderAll() {
-  const filtered = getFilteredPlaces();
   populateFilterOptions();
   syncFilterControls();
+  renderScheduleWorkspace();
+  const filtered = getFilteredPlaces();
   renderResultsSummary(filtered);
-  renderDay1();
-  renderPlanner();
-  renderSpotlights(filtered);
-  renderMapTabs(filtered);
-  renderMap(filtered);
+  renderMapExplorer(filtered);
   renderSections(filtered);
 }
 
-function renderResultsSummary(filtered) {
-  const label =
-    filtered.length === getAllPlaces().length
-      ? defaultResultsSummary
-      : `${filtered.length} places match the current filters.`;
-  elements.resultsSummary.textContent = label;
-}
+function renderScheduleWorkspace() {
+  const schedules = getSchedules();
+  const activeSchedule = schedules.find((schedule) => schedule.key === state.selectedScheduleKey) || schedules[0];
+  state.selectedScheduleKey = activeSchedule.key;
 
-function renderDay1() {
-  elements.day1Timeline.innerHTML = data.day1
+  elements.scheduleTabs.innerHTML = schedules
     .map(
-      (item) => `
-        <article class="timeline-item">
-          <div class="timeline-time">${escapeHtml(item.Time)}</div>
-          <div>
-            <h3>${escapeHtml(item.Plan)}</h3>
-            <p class="card-subtitle">${escapeHtml(item.Area)} · ${escapeHtml(item.Mood)}</p>
-            <p class="card-notes">${escapeHtml(item.Notes)}</p>
-          </div>
-        </article>
-      `
-    )
-    .join("");
-}
-
-function renderPlanner() {
-  const entries = data.dailyPlanner;
-  if (state.plannerIndex >= entries.length) state.plannerIndex = 0;
-  const active = entries[state.plannerIndex];
-
-  elements.plannerRail.innerHTML = entries
-    .map(
-      (entry, index) => `
-        <button class="planner-pill ${index === state.plannerIndex ? "active" : ""}" type="button" data-planner-index="${index}">
-          ${escapeHtml(entry.Date)} · ${escapeHtml(entry.Mood)}
+      (schedule) => `
+        <button class="schedule-tab ${schedule.key === activeSchedule.key ? "active" : ""}" type="button" data-schedule-key="${escapeAttribute(schedule.key)}">
+          ${escapeHtml(schedule.dateLabel)} · ${escapeHtml(schedule.mood)}
         </button>
       `
     )
     .join("");
 
-  elements.plannerStage.innerHTML = `
-    <p class="planner-date">${escapeHtml(active.Date)} · ${escapeHtml(active.City)}</p>
-    <h3>${escapeHtml(active.Mood)}</h3>
-    <p class="card-notes">${escapeHtml(active.Notes)}</p>
-    <div class="planner-stage-grid">
-      ${renderPlannerSlot("Morning", active.Morning)}
-      ${renderPlannerSlot("Workout", active.Workout)}
-      ${renderPlannerSlot("Lunch", active.Lunch)}
-      ${renderPlannerSlot("Afternoon", active.Afternoon)}
-      ${renderPlannerSlot("Dinner", active.Dinner)}
-      ${renderPlannerSlot("Night", active.Night)}
-      ${renderPlannerSlot("Reservations", active["Reservation Needed"])}
-    </div>
-  `;
-}
+  if (!activeSchedule) {
+    elements.scheduleEditor.innerHTML = `<div class="schedule-empty">No schedule data loaded yet.</div>`;
+    return;
+  }
 
-function renderPlannerSlot(label, value) {
-  return `
-    <article class="planner-slot">
-      <strong>${escapeHtml(label)}</strong>
-      <span>${escapeHtml(value || "—")}</span>
+  elements.scheduleEditor.innerHTML = `
+    <article class="schedule-day-card">
+      <div class="schedule-day-header">
+        <div>
+          <p class="schedule-date">${escapeHtml(activeSchedule.dateLabel)} · ${escapeHtml(activeSchedule.city)}</p>
+          <h3>${escapeHtml(activeSchedule.mood)}</h3>
+        </div>
+        <button class="button button-ghost" type="button" data-reset-schedule="true">Reset This Day</button>
+      </div>
+      <p class="schedule-help">This main schedule is editable. Changes save locally in this browser, and you can switch days anytime.</p>
+      <div class="schedule-items">
+        ${activeSchedule.items
+          .map(
+            (item, index) => `
+              <article class="schedule-item">
+                <div class="schedule-stamp">${escapeHtml(item.stamp)}</div>
+                <div class="schedule-fields">
+                  <label>
+                    <span class="field-label">Plan</span>
+                    <textarea class="schedule-textarea" data-schedule-key="${escapeAttribute(activeSchedule.key)}" data-item-index="${index}" data-schedule-field="content">${escapeHtml(item.content)}</textarea>
+                  </label>
+                  <div class="schedule-meta-row">
+                    <label>
+                      <span class="field-label">Area / Mood</span>
+                      <input class="schedule-input" type="text" value="${escapeAttribute(item.meta)}" data-schedule-key="${escapeAttribute(activeSchedule.key)}" data-item-index="${index}" data-schedule-field="meta" />
+                    </label>
+                    <label>
+                      <span class="field-label">Notes</span>
+                      <textarea class="schedule-textarea notes" data-schedule-key="${escapeAttribute(activeSchedule.key)}" data-item-index="${index}" data-schedule-field="notes">${escapeHtml(item.notes)}</textarea>
+                    </label>
+                  </div>
+                </div>
+              </article>
+            `
+          )
+          .join("")}
+      </div>
+      <label class="schedule-summary">
+        <span class="field-label">Day Summary / Notes</span>
+        <textarea class="schedule-textarea" data-schedule-key="${escapeAttribute(activeSchedule.key)}" data-item-index="-1" data-schedule-field="summary">${escapeHtml(activeSchedule.summary)}</textarea>
+      </label>
     </article>
   `;
 }
 
-function shiftPlanner(delta) {
-  const total = data.dailyPlanner.length;
-  state.plannerIndex = (state.plannerIndex + delta + total) % total;
-  renderPlanner();
+function renderResultsSummary(filtered) {
+  elements.resultsSummary.textContent =
+    filtered.length === getAllPlaces().length
+      ? defaultResultsSummary
+      : `${filtered.length} places match the current filters.`;
 }
 
-function renderSpotlights(filtered) {
-  const spotlightIds = ["tichuca-rooftop-bar-night", "song-wat-neighborhood-crawl", "eveandboy"];
-  const spotlightPlaces = spotlightIds
-    .map((id) => filtered.find((place) => place.id === id) || getAllPlaces().find((place) => place.id === id))
-    .filter(Boolean);
-
-  elements.spotlightStack.innerHTML = spotlightPlaces
-    .map(
-      (place) => `
-        <article class="spotlight-item">
-          <div class="card-chips">
-            ${renderStatusPill(place.effectiveStatus)}
-            <span class="chip priority">${escapeHtml(place.priority)}</span>
-            <span class="chip">${escapeHtml(place.filterCategory)}</span>
-          </div>
-          <h3>${escapeHtml(place.name)}</h3>
-          <p class="card-subtitle">${escapeHtml(place.cityGroup)} · ${escapeHtml(place.neighborhood)}</p>
-          <p class="card-notes">${escapeHtml(place.notes)}</p>
-          <div class="card-actions">
-            <button class="card-button" type="button" data-edit-place="${escapeHtml(place.id)}">
-              Edit trip log
-            </button>
-            ${place.sourceUrl ? `<a class="card-button link" href="${escapeAttribute(place.sourceUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
-          </div>
-        </article>
-      `
-    )
-    .join("");
+function renderMapExplorer(filtered) {
+  const cityPlaces = filtered.filter((place) => place.cityGroup === state.mapCity);
+  renderMapCityTabs(filtered);
+  renderNeighborhoodChips(cityPlaces);
+  renderAtlasCanvas(cityPlaces);
+  renderInspector(cityPlaces);
 }
 
-function renderMapTabs(filtered) {
+function renderMapCityTabs(filtered) {
   const counts = ["Bangkok", "Singapore"].map((city) => ({
     city,
     count: filtered.filter((place) => place.cityGroup === city).length,
@@ -470,7 +599,7 @@ function renderMapTabs(filtered) {
   elements.mapCityTabs.innerHTML = counts
     .map(
       ({ city, count }) => `
-        <button class="map-tab ${state.mapCity === city ? "active" : ""}" type="button" data-map-city="${city}">
+        <button class="map-chip ${city === state.mapCity ? "active" : ""}" type="button" data-map-city="${city}">
           ${escapeHtml(city)} (${count})
         </button>
       `
@@ -478,38 +607,86 @@ function renderMapTabs(filtered) {
     .join("");
 }
 
-function renderMap(filtered) {
-  const city = state.mapCity;
-  const places = filtered.filter((place) => place.cityGroup === city);
-  if (!places.length) {
-    elements.mapCanvas.innerHTML = `<div class="map-hud"><p class="map-hint">No visible places in ${escapeHtml(city)} for the current filters.</p></div>`;
-    elements.mapNeighborhoods.innerHTML = "";
-    elements.mapDetail.innerHTML = `<p class="map-hint">Try loosening a filter or switching city tabs.</p>`;
+function renderNeighborhoodChips(cityPlaces) {
+  const grouped = [["All neighborhoods", cityPlaces.length]]
+    .concat(
+      Object.entries(
+        cityPlaces.reduce((acc, place) => {
+          acc[place.neighborhood] = (acc[place.neighborhood] || 0) + 1;
+          return acc;
+        }, {})
+      ).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    );
+
+  elements.mapNeighborhoods.innerHTML = grouped
+    .map(([name, count]) => {
+      const isAll = name === "All neighborhoods";
+      const active = isAll ? state.filters.area === "All" : state.filters.area === name;
+      const value = isAll ? "All" : name;
+      return `
+        <button class="map-chip ${active ? "active" : ""}" type="button" data-neighborhood-filter="${escapeAttribute(value)}">
+          ${escapeHtml(name)}${isAll ? "" : ` (${count})`}
+        </button>
+      `;
+    })
+    .join("");
+}
+
+function renderAtlasCanvas(cityPlaces) {
+  const atlas = neighborhoodAtlas[state.mapCity];
+  if (!cityPlaces.length) {
+    elements.mapCanvas.innerHTML = `
+      <div class="atlas-shell">
+        <div class="atlas-help">
+          <span>No visible places in ${escapeHtml(state.mapCity)} for the current filters.</span>
+          <span>Try clearing a neighborhood or city filter.</span>
+        </div>
+      </div>
+    `;
     return;
   }
 
-  if (!state.activePlaceId || !places.some((place) => place.id === state.activePlaceId)) {
-    state.activePlaceId = places[0].id;
+  if (!state.activePlaceId || !cityPlaces.some((place) => place.id === state.activePlaceId)) {
+    state.activePlaceId = cityPlaces[0].id;
   }
 
-  const activePlace = places.find((place) => place.id === state.activePlaceId) || places[0];
-  const view = mapViews[city];
+  const activeNeighborhood = state.filters.area !== "All" ? state.filters.area : null;
+  const regionMarkup = atlas.regions
+    .map((region) => {
+      const hasPins = cityPlaces.some((place) => place.neighborhood === region.key);
+      const active = activeNeighborhood === region.key;
+      return `
+        <g>
+          <path class="atlas-region ${active ? "active" : ""}" d="${region.path}" data-map-region="${escapeAttribute(region.key)}" opacity="${hasPins ? 1 : 0.55}"></path>
+          <text class="atlas-region-label" x="${region.x}" y="${region.y}" text-anchor="middle">${escapeHtml(region.label)}</text>
+        </g>
+      `;
+    })
+    .join("");
 
-  const labelsMarkup = mapLabels[city]
+  const roadsMarkup = atlas.roads
+    .map((road) => `<path class="${road.className}" d="${road.path}"></path>`)
+    .join("");
+
+  const parksMarkup = atlas.parks
+    .map((park) => `<path class="atlas-park" d="${park.path}"></path>`)
+    .join("");
+
+  const labelsMarkup = atlas.labels
     .map(
-      (item) =>
-        `<div class="map-label" style="left:${item.left}%; top:${item.top}%;">${escapeHtml(item.label)}</div>`
+      (label) =>
+        `<text class="${label.className}" x="${label.x}" y="${label.y}" transform="rotate(${label.rotate} ${label.x} ${label.y})">${escapeHtml(label.text)}</text>`
     )
     .join("");
 
-  const pinsMarkup = places
+  const pinMarkup = cityPlaces
     .map((place) => {
-      const point = projectToMap(city, place.lat, place.lng);
+      const point = projectToAtlas(state.mapCity, place.lat, place.lng);
       return `
         <button
-          class="pin-button ${getPinClass(place)} ${place.id === activePlace.id ? "active" : ""}"
+          class="pin-button ${getPinClass(place)} ${place.id === state.activePlaceId ? "active" : ""}"
           type="button"
-          data-map-place="${escapeHtml(place.id)}"
+          data-map-place="${escapeAttribute(place.id)}"
           style="left:${point.left}%; top:${point.top}%;"
           aria-label="${escapeAttribute(place.name)}"
         ></button>
@@ -518,206 +695,88 @@ function renderMap(filtered) {
     .join("");
 
   elements.mapCanvas.innerHTML = `
-    <div class="map-hud">
-      <p class="map-hint">Drag to move. Use zoom controls for closer neighborhood views.</p>
-      <p class="map-hint">${escapeHtml(city)} · ${places.length} visible pins</p>
-    </div>
-    <div class="map-viewport" id="mapViewport">
-      <div
-        class="map-layer"
-        id="mapLayer"
-        style="transform: translate(${view.x}px, ${view.y}px) scale(${view.scale});"
-      >
-        <div class="map-background">${renderMapBackground(city)}</div>
-        ${labelsMarkup}
-        ${pinsMarkup}
+    <div class="atlas-shell">
+      <div class="atlas-help">
+        <span>Tap neighborhoods to narrow the shortlist. Tap pins to inspect places.</span>
+        <span>${escapeHtml(state.mapCity)} · ${cityPlaces.length} visible pins</span>
+      </div>
+      <div class="atlas-map">
+        <svg class="atlas-svg" viewBox="0 0 1000 620" aria-hidden="true">
+          <rect width="1000" height="620" fill="var(--atlas-land)"></rect>
+          <path class="atlas-water" d="${atlas.water}"></path>
+          ${parksMarkup}
+          ${roadsMarkup}
+          ${regionMarkup}
+          ${labelsMarkup}
+        </svg>
+        <div class="atlas-pins">${pinMarkup}</div>
       </div>
     </div>
   `;
-
-  renderMapDetail(activePlace);
-  renderMapNeighborhoods(places);
-  attachMapInteractions(city);
 }
 
-function renderMapDetail(place) {
-  const placeCount = getFilteredPlaces().filter((item) => item.cityGroup === place.cityGroup).length;
-  const porkCopy =
-    place.porkFriendly === "Yes"
-      ? "No-pork friendly"
-      : `Dietary note: ${place.porkFriendly}`;
-  elements.mapDetail.innerHTML = `
-    <div class="card-chips">
-      ${renderStatusPill(place.effectiveStatus)}
-      <span class="chip">${escapeHtml(place.filterCategory)}</span>
-      <span class="chip">${escapeHtml(place.neighborhood)}</span>
-    </div>
-    <h3>${escapeHtml(place.name)}</h3>
-    <p>${escapeHtml(place.cityGroup)} · ${escapeHtml(place.area)} · ${escapeHtml(place.bestFor || "Flexible pick")}</p>
-    <div class="card-meta" style="margin-top:12px;">
-      <div><strong>Mood:</strong> ${escapeHtml(place.mood)}</div>
-      <div><strong>Priority:</strong> ${escapeHtml(place.priority)}</div>
-      <div><strong>Map view:</strong> ${placeCount} visible places in this city right now</div>
-      <div><strong>Dietary:</strong> ${escapeHtml(porkCopy)}</div>
-      <div><strong>What to do:</strong> ${escapeHtml(place.doOrder || "Use source + notes")}</div>
-    </div>
-    <p class="card-notes" style="margin-top:12px;">${escapeHtml(place.notes)}</p>
-    ${
-      place.personalNotes
-        ? `<p class="note-row"><strong>Your notes:</strong> ${escapeHtml(place.personalNotes)}</p>`
-        : ""
-    }
-    <div class="map-detail-actions" style="margin-top:12px;">
-      <a class="card-button link" href="#card-${escapeAttribute(place.id)}">Jump to card</a>
-      <button class="card-button" type="button" data-map-control="center">Center pin</button>
-      <button class="card-button" type="button" data-edit-place="${escapeHtml(place.id)}">Edit fields</button>
-      ${place.sourceUrl ? `<a class="card-button link" href="${escapeAttribute(place.sourceUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
-    </div>
-  `;
-}
-
-function renderMapNeighborhoods(places) {
-  const grouped = Object.entries(
-    places.reduce((acc, place) => {
-      acc[place.neighborhood] = (acc[place.neighborhood] || 0) + 1;
-      return acc;
-    }, {})
-  )
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, 8);
-
-  elements.mapNeighborhoods.innerHTML = grouped
-    .map(
-      ([name, count]) => `
-        <span class="map-neighborhood-chip">
-          <strong>${escapeHtml(name)}</strong>
-          <span>${count} pin${count === 1 ? "" : "s"}</span>
-        </span>
-      `
-    )
-    .join("");
-}
-
-function attachMapInteractions(city) {
-  const viewport = document.getElementById("mapViewport");
-  const layer = document.getElementById("mapLayer");
-  if (!viewport || !layer) return;
-
-  viewport.addEventListener(
-    "wheel",
-    (event) => {
-      event.preventDefault();
-      const delta = event.deltaY < 0 ? 0.12 : -0.12;
-      const next = clamp(mapViews[city].scale + delta, 0.9, 2.8);
-      mapViews[city].scale = next;
-      layer.style.transform = mapTransform(city);
-    },
-    { passive: false }
-  );
-
-  viewport.addEventListener("pointerdown", (event) => {
-    if (event.target.closest("[data-map-place]")) return;
-    state.draggingMap = {
-      city,
-      startX: event.clientX,
-      startY: event.clientY,
-      originX: mapViews[city].x,
-      originY: mapViews[city].y,
-    };
-    viewport.classList.add("is-dragging");
-  });
-
-  viewport.addEventListener("pointermove", (event) => {
-    if (!state.draggingMap || state.draggingMap.city !== city) return;
-    mapViews[city].x = state.draggingMap.originX + (event.clientX - state.draggingMap.startX);
-    mapViews[city].y = state.draggingMap.originY + (event.clientY - state.draggingMap.startY);
-    layer.style.transform = mapTransform(city);
-  });
-
-  const endDrag = () => {
-    state.draggingMap = null;
-    viewport.classList.remove("is-dragging");
-  };
-  viewport.addEventListener("pointerup", endDrag);
-  viewport.addEventListener("pointerleave", endDrag);
-}
-
-function adjustMapView(action) {
-  const city = state.mapCity;
-  if (action === "zoom-in") mapViews[city].scale = clamp(mapViews[city].scale + 0.16, 0.9, 2.8);
-  if (action === "zoom-out") mapViews[city].scale = clamp(mapViews[city].scale - 0.16, 0.9, 2.8);
-  if (action === "center") centerMapOnActivePin(city);
-  if (action === "reset") mapViews[city] = city === "Bangkok" ? { scale: 1.08, x: 0, y: 0 } : { scale: 1.15, x: 0, y: 0 };
-  renderMap(getFilteredPlaces());
-}
-
-function mapTransform(city) {
-  return `translate(${mapViews[city].x}px, ${mapViews[city].y}px) scale(${mapViews[city].scale})`;
-}
-
-function centerMapOnActivePin(city) {
-  const active = getFilteredPlaces().find(
-    (place) => place.id === state.activePlaceId && place.cityGroup === city
-  );
-  if (!active) return;
-  const point = projectToMap(city, active.lat, active.lng);
-  const layerWidth = 1000;
-  const layerHeight = 700;
-  const x = layerWidth / 2 - (point.left / 100) * layerWidth;
-  const y = layerHeight / 2 - (point.top / 100) * layerHeight;
-  mapViews[city].x = clamp(x, -260, 260);
-  mapViews[city].y = clamp(y, -190, 190);
-}
-
-function renderMapBackground(city) {
-  if (city === "Bangkok") {
-    return `
-      <svg viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true">
-        <rect width="1000" height="700" fill="var(--map-land)"></rect>
-        <path class="map-region-soft" d="M80 132 L285 110 L350 210 L260 320 L98 286 Z"></path>
-        <path class="map-region" d="M178 262 L404 220 L474 328 L325 444 L140 394 Z"></path>
-        <path class="map-region-soft" d="M440 186 L666 158 L828 286 L718 420 L502 392 L434 280 Z"></path>
-        <path class="map-region-soft" d="M534 404 L776 388 L902 538 L694 628 L484 562 Z"></path>
-        <path class="map-water" d="M132 62 C248 172 304 250 330 350 C356 454 340 556 320 648 C354 620 402 584 450 530 C504 468 526 394 520 304 C514 216 458 128 364 62 C282 4 214 8 132 62 Z"></path>
-        <path class="map-road-major" d="M48 402 C172 360 262 360 372 404 C462 440 556 446 674 418 C812 388 902 388 974 424"></path>
-        <path class="map-road-major" d="M242 124 C370 136 486 164 612 230 C706 280 792 352 900 468"></path>
-        <path class="map-road-minor" d="M228 524 C356 484 470 474 598 496 C706 514 810 552 942 610"></path>
-        <path class="map-road-minor" d="M540 116 C608 170 654 230 690 302 C716 352 752 392 816 430"></path>
-        <path class="map-road-minor" d="M118 214 C188 252 240 302 280 360 C306 398 320 438 336 498"></path>
-        <text class="map-water-label" x="250" y="348" transform="rotate(-74 250 348)">Chao Phraya</text>
-        <text class="map-road-label" x="655" y="262">SUKHUMVIT CORRIDOR</text>
-        <text class="map-road-label" x="184" y="432">OLD TOWN GRID</text>
-      </svg>
-    `;
+function renderInspector(cityPlaces) {
+  if (!cityPlaces.length) {
+    elements.mapInspector.innerHTML = `<p class="atlas-help">No visible places to inspect yet.</p>`;
+    return;
   }
 
-  return `
-    <svg viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true">
-        <rect width="1000" height="700" fill="var(--map-land)"></rect>
-        <path class="map-water" d="M0 470 C160 438 248 420 350 376 C444 334 580 302 672 262 C792 212 876 174 1000 114 L1000 700 L0 700 Z"></path>
-        <path class="map-region-soft" d="M150 204 L332 174 L428 290 L292 388 L142 330 Z"></path>
-        <path class="map-region" d="M362 250 L566 214 L648 304 L544 406 L378 382 L320 306 Z"></path>
-        <path class="map-region-soft" d="M628 234 L840 190 L936 286 L884 404 L700 396 L614 312 Z"></path>
-        <path class="map-park" d="M196 470 C278 434 380 430 460 472 C420 556 332 602 240 574 C180 554 160 518 196 470 Z"></path>
-        <path class="map-road-major" d="M152 312 C328 306 478 320 608 360 C724 396 842 394 972 340"></path>
-        <path class="map-road-major" d="M174 188 C298 248 360 332 422 454 C470 550 556 614 668 612"></path>
-        <path class="map-road-minor" d="M346 160 C420 238 510 292 626 320 C736 346 832 338 934 286"></path>
-        <path class="map-road-minor" d="M268 502 C382 472 480 454 590 466 C710 478 816 532 920 624"></path>
-        <path class="map-road-minor" d="M468 210 C482 274 494 332 522 378 C552 428 608 452 692 466"></path>
-        <text class="map-water-label" x="680" y="522">Marina + Coast</text>
-        <text class="map-road-label" x="566" y="342">CITY CORE</text>
-        <text class="map-road-label" x="226" y="286">ORCHARD AXIS</text>
-      </svg>
+  const activePlace = cityPlaces.find((place) => place.id === state.activePlaceId) || cityPlaces[0];
+  const related = cityPlaces
+    .filter((place) => place.neighborhood === activePlace.neighborhood && place.id !== activePlace.id)
+    .slice(0, 5);
+
+  const porkCopy =
+    activePlace.porkFriendly === "Yes"
+      ? "No-pork friendly"
+      : `Dietary note: ${activePlace.porkFriendly}`;
+
+  elements.mapInspector.innerHTML = `
+    <div class="card-chips">
+      ${renderStatusPill(activePlace.effectiveStatus)}
+      <span class="chip">${escapeHtml(activePlace.filterCategory)}</span>
+      <span class="chip">${escapeHtml(activePlace.neighborhood)}</span>
+    </div>
+    <h3>${escapeHtml(activePlace.name)}</h3>
+    <p class="card-subtitle">${escapeHtml(activePlace.cityGroup)} · ${escapeHtml(activePlace.area || activePlace.neighborhood)}</p>
+    <div class="card-meta" style="margin-top:14px;">
+      <div><strong>Best for:</strong> ${escapeHtml(activePlace.bestFor || "Flexible pick")}</div>
+      <div><strong>Priority:</strong> ${escapeHtml(activePlace.priority)}</div>
+      <div><strong>Mood:</strong> ${escapeHtml(activePlace.mood)}</div>
+      <div><strong>Dietary:</strong> ${escapeHtml(porkCopy)}</div>
+      <div><strong>What to do:</strong> ${escapeHtml(activePlace.doOrder || "Use notes + source")}</div>
+    </div>
+    <p class="card-notes" style="margin-top:14px;">${escapeHtml(activePlace.notes)}</p>
+    ${
+      activePlace.personalNotes
+        ? `<p class="note-row"><strong>Your notes:</strong> ${escapeHtml(activePlace.personalNotes)}</p>`
+        : ""
+    }
+    <div class="inspector-actions" style="margin-top:16px;">
+      <a class="card-button link" href="#card-${escapeAttribute(activePlace.id)}">Jump to card</a>
+      <button class="card-button" type="button" data-edit-place="${escapeAttribute(activePlace.id)}">Edit fields</button>
+      ${activePlace.sourceUrl ? `<a class="card-button link" href="${escapeAttribute(activePlace.sourceUrl)}" target="_blank" rel="noreferrer">Open source</a>` : ""}
+    </div>
+    <div class="inspector-related">
+      ${related.length ? `<strong>More in ${escapeHtml(activePlace.neighborhood)}</strong>` : ""}
+      ${related
+        .map(
+          (place) => `
+            <button type="button" data-select-place="${escapeAttribute(place.id)}">${escapeHtml(place.name)}</button>
+          `
+        )
+        .join("")}
+    </div>
   `;
 }
 
-function projectToMap(city, lat, lng) {
+function projectToAtlas(city, lat, lng) {
   const bounds = mapBounds[city];
-  const left = ((lng - bounds.lngMin) / (bounds.lngMax - bounds.lngMin)) * 82 + 9;
-  const top = (1 - (lat - bounds.latMin) / (bounds.latMax - bounds.latMin)) * 76 + 9;
+  const left = ((lng - bounds.lngMin) / (bounds.lngMax - bounds.lngMin)) * 86 + 7;
+  const top = (1 - (lat - bounds.latMin) / (bounds.latMax - bounds.latMin)) * 80 + 8;
   return {
-    left: clamp(left, 8, 92),
-    top: clamp(top, 8, 92),
+    left: clamp(left, 6, 94),
+    top: clamp(top, 7, 92),
   };
 }
 
@@ -801,7 +860,7 @@ function renderCard(place) {
       <p class="note-row">${escapeHtml(porkNote)}</p>
       ${place.personalNotes ? `<p class="note-row"><strong>Your notes:</strong> ${escapeHtml(place.personalNotes)}</p>` : ""}
       <div class="card-actions">
-        <button class="card-button" type="button" data-edit-place="${escapeHtml(place.id)}">Edit fields</button>
+        <button class="card-button" type="button" data-edit-place="${escapeAttribute(place.id)}">Edit fields</button>
         ${place.sourceUrl ? `<a class="card-button link" href="${escapeAttribute(place.sourceUrl)}" target="_blank" rel="noreferrer">Source</a>` : ""}
       </div>
     </article>
@@ -831,7 +890,7 @@ function closeModal() {
 
 function savePlaceEdits() {
   if (!state.editingPlaceId) return;
-  state.edits[state.editingPlaceId] = {
+  state.tripLogEdits[state.editingPlaceId] = {
     status: elements.editStatus.value,
     visited: elements.editVisited.checked,
     myRating: elements.editRating.value,
@@ -839,15 +898,15 @@ function savePlaceEdits() {
     wouldReturn: elements.editWouldReturn.value,
     notes: elements.editNotes.value,
   };
-  saveEdits();
+  persistStorage(tripLogStorageKey, state.tripLogEdits);
   closeModal();
   renderAll();
 }
 
 function resetPlaceEdits() {
   if (!state.editingPlaceId) return;
-  delete state.edits[state.editingPlaceId];
-  saveEdits();
+  delete state.tripLogEdits[state.editingPlaceId];
+  persistStorage(tripLogStorageKey, state.tripLogEdits);
   closeModal();
   renderAll();
 }
@@ -971,10 +1030,6 @@ function syncFilterControls() {
   elements.filters.classPassOnly.checked = state.filters.classPassOnly;
 }
 
-function uniqueValues(items, getter) {
-  return [...new Set(items.map(getter).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-}
-
 function renderStatusPill(status) {
   const className = `status-pill status-${status.toLowerCase().replaceAll(" ", "-")}`;
   return `<span class="${className}">${escapeHtml(status)}</span>`;
@@ -984,10 +1039,24 @@ function getPinClass(place) {
   if (["Closed", "Cut"].includes(place.effectiveStatus) || place.porkFriendly === "No") {
     return "pin-caution";
   }
-  if (place.effectiveStatus === "Planned Night") {
-    return "pin-planned";
-  }
+  if (place.effectiveStatus === "Planned Night") return "pin-planned";
   return "pin-normal";
+}
+
+function uniqueValues(items, getter) {
+  return [...new Set(items.map(getter).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function loadStorage(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function persistStorage(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
 }
 
 function clamp(value, min, max) {
